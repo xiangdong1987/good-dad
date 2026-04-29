@@ -56,6 +56,94 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
   }
 
+  Future<void> _showAvailableModels() async {
+    setState(() => _testing = true);
+    await _save();
+    final client = ref.read(llmClientProvider);
+    if (client == null) {
+      setState(() {
+        _testing = false;
+        _testOk = false;
+        _testResult = '配置不完整，先填 baseURL + API Key';
+      });
+      return;
+    }
+    try {
+      final models = await (client as OpenAICompatibleClient).listModels();
+      if (!mounted) return;
+      setState(() {
+        _testing = false;
+        _testOk = true;
+        _testResult = '✅ 共 ${models.length} 个可用模型，点列表回填';
+      });
+      await _showPicker(models);
+    } on LlmException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _testing = false;
+        _testOk = false;
+        _testResult = '❌ ${e.statusCode ?? ''} ${e.message}';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _testing = false;
+        _testOk = false;
+        _testResult = '❌ $e';
+      });
+    }
+  }
+
+  Future<void> _showPicker(List<String> models) async {
+    if (models.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('服务端返回空列表')),
+      );
+      return;
+    }
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.of(ctx).size.height * 0.7,
+          child: Column(
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('点条目把 id 填到当前选中的模型字段',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: models.length,
+                  itemBuilder: (_, i) => ListTile(
+                    title: Text(models[i],
+                        style: const TextStyle(
+                            fontFamily: 'monospace', fontSize: 13)),
+                    onTap: () => Navigator.of(ctx).pop(models[i]),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    // 哪个输入框最后被聚焦过——用 selection 简单点，全填到两个字段
+    setState(() {
+      if (_chatModelCtl.text.trim().isEmpty ||
+          _chatModelCtl.text == _visionModelCtl.text) {
+        _chatModelCtl.text = picked;
+        _visionModelCtl.text = picked;
+      } else {
+        _visionModelCtl.text = picked;
+      }
+    });
+  }
+
   Future<void> _runTest() async {
     setState(() {
       _testing = true;
@@ -159,7 +247,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ),
                 autocorrect: false,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: _testing ? null : _showAvailableModels,
+                icon: const Icon(Icons.list_alt_outlined),
+                label: const Text('查看服务端可用模型'),
+              ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(

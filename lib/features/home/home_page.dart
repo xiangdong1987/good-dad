@@ -3,21 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/llm/openai_compatible_client.dart';
+import '../../ui/theme.dart';
+import '../../ui/widgets/cream_widgets.dart';
 
-/// M1 占位首页：grid 内卡片在 M2 之后由 SkillRegistry 动态生成。
-/// 现在先列出 7 个未来 skill 的入口（点击后提示 "M2 起可用"），并提供
-/// 「设置」入口以及 LLM 配置状态徽章。
+/// 首页 · 圆润奶油可爱风
+/// 翻译自 good-dad-cute.html 的 HomeScreen
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
-  static const _stub = [
-    _Skill('能不能吃', Icons.restaurant_outlined, '拍一张食物照，问我'),
-    _Skill('孕期食谱', Icons.menu_book_outlined, '今天给老婆做什么'),
-    _Skill('本周孕期', Icons.calendar_month_outlined, '宝宝在做什么'),
-    _Skill('肚肚照', Icons.photo_camera_outlined, '每月记录'),
-    _Skill('产前准备', Icons.checklist_outlined, '待产包 / 入院流程'),
-    _Skill('宝宝采购', Icons.shopping_bag_outlined, '分阶段不囤积'),
-    _Skill('聊聊', Icons.chat_bubble_outline, '什么都能问'),
+  static final _skills = <_Skill>[
+    _Skill('能不能吃', '🍱', '拍一张，问我', AppColors.mint300, '/food'),
+    _Skill('本周孕期', '👶', '宝宝在做啥', AppColors.sky300, '/week'),
+    _Skill('孕期食谱', '🍲', '今天做点啥', AppColors.lemon300, '/recipe'),
+    _Skill('肚肚照', '🤰', '本月该拍了', AppColors.peach200, '/belly'),
+    _Skill('产前准备', '📋', '待产包', AppColors.cream200, '/checklist'),
+    _Skill('宝宝采购', '🛒', '分阶段不囤', AppColors.rose300, '/shopping'),
   ];
 
   @override
@@ -25,27 +25,84 @@ class HomePage extends ConsumerWidget {
     final llmReady = ref.watch(llmClientProvider) != null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('good-dad'),
-        actions: [
-          IconButton(
-            tooltip: '设置',
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => context.go('/settings'),
-          ),
-        ],
-      ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           children: [
-            _StatusBanner(ready: llmReady),
-            const SizedBox(height: 16),
-            const Text(
-              '今天怎么帮上忙？',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            // 顶部问候
+            Row(
+              children: [
+                const Sticker(
+                    emoji: '🐻',
+                    background: AppColors.lemon300,
+                    tilt: -4,
+                    size: 44),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('嘿，老周',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelSmall
+                              ?.copyWith(color: AppColors.ink600)),
+                      Text('今天孕 24 周第 3 天',
+                          style: Theme.of(context).textTheme.titleMedium),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.settings_outlined),
+                  onPressed: () => context.push('/settings'),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 18),
+
+            // 今日重点 hero card
+            CreamCard(
+              background: AppColors.peach300,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const CreamPill(
+                    label: '✨ 今天重点',
+                    background: Colors.white,
+                    foreground: AppColors.peach700,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    '妈妈说昨晚有点反胃\n下班顺路买点橘子？🍊',
+                    style: TextStyle(
+                      fontFamily: 'Nunito',
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18,
+                      height: 1.4,
+                      color: AppColors.ink900,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(children: [
+                    CreamButton(label: '已记下 ✓', onPressed: () {}),
+                    const SizedBox(width: 8),
+                    CreamButton(
+                        label: '晚点说', ghost: true, onPressed: () {}),
+                  ]),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // LLM 状态
+            if (!llmReady)
+              _StatusBanner(onTap: () => context.push('/settings')),
+            if (!llmReady) const SizedBox(height: 14),
+
+            Text('今天能帮上什么？',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 10),
+
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
@@ -53,18 +110,50 @@ class HomePage extends ConsumerWidget {
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
               childAspectRatio: 1.05,
-              children: _stub
-                  .map((s) => _SkillCard(
-                        skill: s,
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('该功能将在 M2 阶段联通 SKILL.md 后可用'),
-                            ),
-                          );
-                        },
+              children: _skills
+                  .map((s) => SkillCard(
+                        emoji: s.emoji,
+                        title: s.title,
+                        subtitle: s.sub,
+                        background: s.bg,
+                        onTap: () => context.push(s.route),
                       ))
                   .toList(),
+            ),
+            const SizedBox(height: 14),
+
+            // 聊聊横条
+            CreamCard(
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('聊聊 · M2 阶段联通')),
+                );
+              },
+              padding: const EdgeInsets.all(14),
+              child: Row(children: const [
+                Sticker(emoji: '💬', size: 44),
+                SizedBox(width: 12),
+                Expanded(
+                    child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('聊聊',
+                        style: TextStyle(
+                            fontFamily: 'Nunito',
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14)),
+                    SizedBox(height: 2),
+                    Text('什么都能问，不用客气',
+                        style: TextStyle(
+                            fontFamily: 'Nunito',
+                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                            color: AppColors.ink600)),
+                  ],
+                )),
+                Icon(Icons.chevron_right_rounded,
+                    color: AppColors.peach700),
+              ]),
             ),
           ],
         ),
@@ -74,99 +163,39 @@ class HomePage extends ConsumerWidget {
 }
 
 class _Skill {
-  final String title;
-  final IconData icon;
-  final String subtitle;
-  const _Skill(this.title, this.icon, this.subtitle);
-}
-
-class _SkillCard extends StatelessWidget {
-  final _Skill skill;
-  final VoidCallback onTap;
-  const _SkillCard({required this.skill, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Icon(skill.icon, size: 28),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    skill.title,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    skill.subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  final String title, emoji, sub, route;
+  final Color bg;
+  _Skill(this.title, this.emoji, this.sub, this.bg, this.route);
 }
 
 class _StatusBanner extends StatelessWidget {
-  final bool ready;
-  const _StatusBanner({required this.ready});
+  final VoidCallback onTap;
+  const _StatusBanner({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
+    return CreamCard(
+      background: AppColors.lemon300,
+      onTap: onTap,
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: ready ? scheme.primaryContainer : scheme.errorContainer,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            ready ? Icons.check_circle_outline : Icons.warning_amber_rounded,
-            color: ready
-                ? scheme.onPrimaryContainer
-                : scheme.onErrorContainer,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
+      child: Row(children: const [
+        Sticker(
+            emoji: '⚙️',
+            size: 36,
+            background: Colors.white,
+            tilt: -4),
+        SizedBox(width: 10),
+        Expanded(
             child: Text(
-              ready
-                  ? 'AI 已配置好，可以开聊'
-                  : '还没配置 LLM——去「设置」填上 baseURL 与 key',
-              style: TextStyle(
-                color: ready
-                    ? scheme.onPrimaryContainer
-                    : scheme.onErrorContainer,
-              ),
-            ),
+          '还没配 LLM——点这里去设置',
+          style: TextStyle(
+            fontFamily: 'Nunito',
+            fontWeight: FontWeight.w800,
+            fontSize: 14,
+            color: Color(0xFF8A6B14),
           ),
-          if (!ready)
-            TextButton(
-              onPressed: () => context.go('/settings'),
-              child: const Text('去设置'),
-            ),
-        ],
-      ),
+        )),
+      ]),
     );
   }
 }

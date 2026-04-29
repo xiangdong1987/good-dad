@@ -24,7 +24,11 @@ class OpenAICompatibleClient extends LlmClient {
               sendTimeout: const Duration(minutes: 2),
             ));
 
-  String _resolveUrl() {
+  String _resolveUrl() => _resolvePath('chat/completions');
+
+  String _resolveModelsUrl() => _resolvePath('models');
+
+  String _resolvePath(String suffix) {
     var base = config.baseUrl.trim();
     if (base.isEmpty) {
       throw const LlmException('未配置 baseURL');
@@ -32,9 +36,12 @@ class OpenAICompatibleClient extends LlmClient {
     while (base.endsWith('/')) {
       base = base.substring(0, base.length - 1);
     }
-    if (base.endsWith('/chat/completions')) return base;
+    if (base.endsWith('/chat/completions')) {
+      // baseUrl 已是完整聊天端点；把它降级回 /v1 再拼后缀
+      base = base.substring(0, base.length - '/chat/completions'.length);
+    }
     if (!base.endsWith('/v1') && !base.contains('/v')) base = '$base/v1';
-    return '$base/chat/completions';
+    return '$base/$suffix';
   }
 
   Map<String, dynamic> _encodeMessage(LlmMessage m) {
@@ -151,15 +158,110 @@ class OpenAICompatibleClient extends LlmClient {
   }
 
   /// Quick non-streaming sanity check for the settings page.
+  ///
+  /// Uses non-streaming JSON because some providers (especially Chinese
+  /// vendors) return error bodies that aren't readable when the request is
+  /// `responseType: stream`.
   Future<String> testEcho() async {
-    final result = await chatOnce(
-      [
-        LlmMessage.system('你是一个连接测试助手，请直接返回："OK"。'),
-        LlmMessage.user('ping'),
+    if (!config.isComplete) {
+      throw const LlmException('LLM 未配置完整');
+    }
+    final url = _resolveUrl();
+    final body = <String, dynamic>{
+      'model': config.chatModel,
+      'stream': false,
+      'temperature': 0,
+      'messages': [
+        {'role': 'system', 'content': '你是连接测试助手，请直接回复："OK"。'},
+        {'role': 'user', 'content': 'ping'},
       ],
-      temperature: 0,
-    );
-    return result.text.trim();
+    };
+
+    try {
+      final resp = await _dio.post<Map<String, dynamic>>(
+        url,
+        data: body,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${config.apiKey}',
+            'Content-Type': 'application/json',
+          },
+          responseType: ResponseType.json,
+        ),
+      );
+      final data = resp.data;
+      if (data == null) return '(空响应)';
+      final choices = data['choices'];
+      if (choices is List && choices.isNotEmpty) {
+        final msg = choices.first['message'];
+        if (msg is Map && msg['content'] is String) {
+          return (msg['content'] as String).trim();
+        }
+      }
+      // 非标准格式，原样返回前 120 字以便排查
+      return _truncate(jsonEncode(data), 120);
+    } on DioException catch (e) {
+      throw LlmException(_formatDioError(e),
+          statusCode: e.response?.statusCode, cause: e);
+    }
+  }
+
+  String _formatDioError(DioException e) {
+    final code = e.response?.statusCode;
+    final body = e.response?.data;
+    String detail;
+    try {
+      detail = body is String
+          ? body
+          : (body == null ? '' : jsonEncode(body));
+    } catch (_) {
+      detail = body.toString();
+    }
+    detail = _truncate(detail, 240);
+    return [
+      if (code != null) '$code',
+      if (detail.isNotEmpty) detail,
+      if (detail.isEmpty && (e.message ?? '').isNotEmpty) e.message,
+    ].whereType<String>().join(' · ');
+  }
+
+  String _truncate(String s, int n) =>
+      s.length <= n ? s : '${s.substring(0, n)}…';
+
+  /// GET {baseURL}/models — 返回服务端公开的模型 id 列表。
+  Future<List<String>> listModels() async {
+    if (config.baseUrl.isEmpty || config.apiKey.isEmpty) {
+      throw const LlmException('请先填 baseURL 与 API Key');
+    }
+    final url = _resolveModelsUrl();
+    try {
+      final resp = await _dio.get<Map<String, dynamic>>(
+        url,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${config.apiKey}',
+            'Accept': 'application/json',
+          },
+          responseType: ResponseType.json,
+        ),
+      );
+      final data = resp.data;
+      final list = data?['data'];
+      if (list is List) {
+        return list
+            .map((e) {
+              if (e is Map && e['id'] != null) return e['id'].toString();
+              return e.toString();
+            })
+            .where((s) => s.isNotEmpty)
+            .toList()
+          ..sort();
+      }
+      return const [];
+    } on DioException catch (e) {
+      throw LlmException(_formatDioError(e),
+          statusCode: e.response?.statusCode, cause: e);
+    }
   }
 }
 

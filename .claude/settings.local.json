@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import cairosvg\")",
+      "Bash(python3 -c \"from PIL import Image\")",
+      "Bash(pip3 install *)",
+      "Bash(python3 -c \"import cairosvg; print\\('ok cairosvg'\\); from PIL import Image; print\\('ok PIL'\\)\")"
+    ]
+  }
+}
