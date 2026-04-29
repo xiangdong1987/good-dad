@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/llm/openai_compatible_client.dart';
+import '../../core/llm/llm_providers.dart';
+import '../../core/profile/profile.dart';
+import '../../core/profile/profile_repository.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets/cream_widgets.dart';
+import '../onboarding/onboarding_page.dart';
 
 /// 首页 · 圆润奶油可爱风
-/// 翻译自 good-dad-cute.html 的 HomeScreen
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
@@ -22,142 +24,167 @@ class HomePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final llmReady = ref.watch(llmClientProvider) != null;
+    final profileAsync = ref.watch(profileProvider);
 
     return Scaffold(
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-          children: [
-            // 顶部问候
-            Row(
-              children: [
-                const Sticker(
-                    emoji: '🐻',
-                    background: AppColors.lemon300,
-                    tilt: -4,
-                    size: 44),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('嘿，老周',
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
-                              ?.copyWith(color: AppColors.ink600)),
-                      Text('今天孕 24 周第 3 天',
-                          style: Theme.of(context).textTheme.titleMedium),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.settings_outlined),
-                  onPressed: () => context.push('/settings'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
+        child: profileAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('读取家庭信息失败: $e')),
+          data: (profile) {
+            if (!profile.isComplete) return const OnboardingPage();
+            return _HomeContent(profile: profile, skills: _skills);
+          },
+        ),
+      ),
+    );
+  }
+}
 
-            // 今日重点 hero card
-            CreamCard(
-              background: AppColors.peach300,
+class _HomeContent extends ConsumerWidget {
+  final FamilyProfile profile;
+  final List<_Skill> skills;
+
+  const _HomeContent({required this.profile, required this.skills});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final llmReady = ref.watch(llmClientProvider) != null;
+    final week = profile.currentWeek();
+    final dayInWeek = profile.currentDayInWeek();
+    final weekText = week == null
+        ? '已设置完成'
+        : '今天孕 $week 周${dayInWeek == null || dayInWeek == 0 ? '' : '第 $dayInWeek 天'}';
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+      children: [
+        // 顶部问候
+        Row(
+          children: [
+            const Sticker(
+                emoji: '🐻',
+                background: AppColors.lemon300,
+                tilt: -4,
+                size: 44),
+            const SizedBox(width: 10),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const CreamPill(
-                    label: '✨ 今天重点',
-                    background: Colors.white,
-                    foreground: AppColors.peach700,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    '妈妈说昨晚有点反胃\n下班顺路买点橘子？🍊',
-                    style: TextStyle(
-                      fontFamily: 'Nunito',
-                      fontWeight: FontWeight.w900,
-                      fontSize: 18,
-                      height: 1.4,
-                      color: AppColors.ink900,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(children: [
-                    CreamButton(label: '已记下 ✓', onPressed: () {}),
-                    const SizedBox(width: 8),
-                    CreamButton(
-                        label: '晚点说', ghost: true, onPressed: () {}),
-                  ]),
+                  Text('嘿，${profile.dadName ?? "爸爸"}',
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelSmall
+                          ?.copyWith(color: AppColors.ink600)),
+                  Text(weekText,
+                      style: Theme.of(context).textTheme.titleMedium),
                 ],
               ),
             ),
-            const SizedBox(height: 18),
-
-            // LLM 状态
-            if (!llmReady)
-              _StatusBanner(onTap: () => context.push('/settings')),
-            if (!llmReady) const SizedBox(height: 14),
-
-            Text('今天能帮上什么？',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 10),
-
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.05,
-              children: _skills
-                  .map((s) => SkillCard(
-                        emoji: s.emoji,
-                        title: s.title,
-                        subtitle: s.sub,
-                        background: s.bg,
-                        onTap: () => context.push(s.route),
-                      ))
-                  .toList(),
-            ),
-            const SizedBox(height: 14),
-
-            // 聊聊横条
-            CreamCard(
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('聊聊 · M2 阶段联通')),
-                );
-              },
-              padding: const EdgeInsets.all(14),
-              child: Row(children: const [
-                Sticker(emoji: '💬', size: 44),
-                SizedBox(width: 12),
-                Expanded(
-                    child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('聊聊',
-                        style: TextStyle(
-                            fontFamily: 'Nunito',
-                            fontWeight: FontWeight.w900,
-                            fontSize: 14)),
-                    SizedBox(height: 2),
-                    Text('什么都能问，不用客气',
-                        style: TextStyle(
-                            fontFamily: 'Nunito',
-                            fontWeight: FontWeight.w600,
-                            fontSize: 11,
-                            color: AppColors.ink600)),
-                  ],
-                )),
-                Icon(Icons.chevron_right_rounded,
-                    color: AppColors.peach700),
-              ]),
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () => context.push('/settings'),
             ),
           ],
         ),
-      ),
+        const SizedBox(height: 18),
+
+        // 今日重点 hero card
+        CreamCard(
+          background: AppColors.peach300,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const CreamPill(
+                label: '✨ 今天重点',
+                background: Colors.white,
+                foreground: AppColors.peach700,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '${profile.momName ?? "妈妈"}今天感觉怎样？\n下班顺路问问她吧 🍊',
+                style: const TextStyle(
+                  fontFamily: 'Nunito',
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                  height: 1.4,
+                  color: AppColors.ink900,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(children: [
+                CreamButton(label: '已记下 ✓', onPressed: () {}),
+                const SizedBox(width: 8),
+                CreamButton(
+                    label: '晚点说', ghost: true, onPressed: () {}),
+              ]),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        // LLM 状态
+        if (!llmReady)
+          _StatusBanner(onTap: () => context.push('/settings')),
+        if (!llmReady) const SizedBox(height: 14),
+
+        Text('今天能帮上什么？',
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 10),
+
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 1.05,
+          children: skills
+              .map((s) => SkillCard(
+                    emoji: s.emoji,
+                    title: s.title,
+                    subtitle: s.sub,
+                    background: s.bg,
+                    onTap: () => context.push(s.route),
+                  ))
+              .toList(),
+        ),
+        const SizedBox(height: 14),
+
+        // 聊聊横条
+        CreamCard(
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('聊聊 · M2 阶段联通')),
+            );
+          },
+          padding: const EdgeInsets.all(14),
+          child: Row(children: const [
+            Sticker(emoji: '💬', size: 44),
+            SizedBox(width: 12),
+            Expanded(
+                child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('聊聊',
+                    style: TextStyle(
+                        fontFamily: 'Nunito',
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14)),
+                SizedBox(height: 2),
+                Text('什么都能问，不用客气',
+                    style: TextStyle(
+                        fontFamily: 'Nunito',
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                        color: AppColors.ink600)),
+              ],
+            )),
+            Icon(Icons.chevron_right_rounded, color: AppColors.peach700),
+          ]),
+        ),
+      ],
     );
   }
 }

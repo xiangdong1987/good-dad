@@ -1927,6 +1927,18 @@ class $PregnancyProfileTable extends PregnancyProfile
       requiredDuringInsert: false,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _dadNameMeta =
+      const VerificationMeta('dadName');
+  @override
+  late final GeneratedColumn<String> dadName = GeneratedColumn<String>(
+      'dad_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _momNameMeta =
+      const VerificationMeta('momName');
+  @override
+  late final GeneratedColumn<String> momName = GeneratedColumn<String>(
+      'mom_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _dueDateMeta =
       const VerificationMeta('dueDate');
   @override
@@ -1955,7 +1967,7 @@ class $PregnancyProfileTable extends PregnancyProfile
       defaultValue: currentDateAndTime);
   @override
   List<GeneratedColumn> get $columns =>
-      [id, dueDate, lastPeriod, partnerInfoJson, updatedAt];
+      [id, dadName, momName, dueDate, lastPeriod, partnerInfoJson, updatedAt];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1969,6 +1981,14 @@ class $PregnancyProfileTable extends PregnancyProfile
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('dad_name')) {
+      context.handle(_dadNameMeta,
+          dadName.isAcceptableOrUnknown(data['dad_name']!, _dadNameMeta));
+    }
+    if (data.containsKey('mom_name')) {
+      context.handle(_momNameMeta,
+          momName.isAcceptableOrUnknown(data['mom_name']!, _momNameMeta));
     }
     if (data.containsKey('due_date')) {
       context.handle(_dueDateMeta,
@@ -2001,6 +2021,10 @@ class $PregnancyProfileTable extends PregnancyProfile
     return PregnancyProfileRow(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      dadName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}dad_name']),
+      momName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}mom_name']),
       dueDate: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}due_date']),
       lastPeriod: attachedDatabase.typeMapping
@@ -2021,12 +2045,16 @@ class $PregnancyProfileTable extends PregnancyProfile
 class PregnancyProfileRow extends DataClass
     implements Insertable<PregnancyProfileRow> {
   final int id;
+  final String? dadName;
+  final String? momName;
   final DateTime? dueDate;
   final DateTime? lastPeriod;
   final String? partnerInfoJson;
   final DateTime updatedAt;
   const PregnancyProfileRow(
       {required this.id,
+      this.dadName,
+      this.momName,
       this.dueDate,
       this.lastPeriod,
       this.partnerInfoJson,
@@ -2035,6 +2063,12 @@ class PregnancyProfileRow extends DataClass
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    if (!nullToAbsent || dadName != null) {
+      map['dad_name'] = Variable<String>(dadName);
+    }
+    if (!nullToAbsent || momName != null) {
+      map['mom_name'] = Variable<String>(momName);
+    }
     if (!nullToAbsent || dueDate != null) {
       map['due_date'] = Variable<DateTime>(dueDate);
     }
@@ -2051,6 +2085,12 @@ class PregnancyProfileRow extends DataClass
   PregnancyProfileCompanion toCompanion(bool nullToAbsent) {
     return PregnancyProfileCompanion(
       id: Value(id),
+      dadName: dadName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dadName),
+      momName: momName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(momName),
       dueDate: dueDate == null && nullToAbsent
           ? const Value.absent()
           : Value(dueDate),
@@ -2069,6 +2109,8 @@ class PregnancyProfileRow extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return PregnancyProfileRow(
       id: serializer.fromJson<int>(json['id']),
+      dadName: serializer.fromJson<String?>(json['dadName']),
+      momName: serializer.fromJson<String?>(json['momName']),
       dueDate: serializer.fromJson<DateTime?>(json['dueDate']),
       lastPeriod: serializer.fromJson<DateTime?>(json['lastPeriod']),
       partnerInfoJson: serializer.fromJson<String?>(json['partnerInfoJson']),
@@ -2080,6 +2122,8 @@ class PregnancyProfileRow extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'dadName': serializer.toJson<String?>(dadName),
+      'momName': serializer.toJson<String?>(momName),
       'dueDate': serializer.toJson<DateTime?>(dueDate),
       'lastPeriod': serializer.toJson<DateTime?>(lastPeriod),
       'partnerInfoJson': serializer.toJson<String?>(partnerInfoJson),
@@ -2089,12 +2133,16 @@ class PregnancyProfileRow extends DataClass
 
   PregnancyProfileRow copyWith(
           {int? id,
+          Value<String?> dadName = const Value.absent(),
+          Value<String?> momName = const Value.absent(),
           Value<DateTime?> dueDate = const Value.absent(),
           Value<DateTime?> lastPeriod = const Value.absent(),
           Value<String?> partnerInfoJson = const Value.absent(),
           DateTime? updatedAt}) =>
       PregnancyProfileRow(
         id: id ?? this.id,
+        dadName: dadName.present ? dadName.value : this.dadName,
+        momName: momName.present ? momName.value : this.momName,
         dueDate: dueDate.present ? dueDate.value : this.dueDate,
         lastPeriod: lastPeriod.present ? lastPeriod.value : this.lastPeriod,
         partnerInfoJson: partnerInfoJson.present
@@ -2105,6 +2153,8 @@ class PregnancyProfileRow extends DataClass
   PregnancyProfileRow copyWithCompanion(PregnancyProfileCompanion data) {
     return PregnancyProfileRow(
       id: data.id.present ? data.id.value : this.id,
+      dadName: data.dadName.present ? data.dadName.value : this.dadName,
+      momName: data.momName.present ? data.momName.value : this.momName,
       dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
       lastPeriod:
           data.lastPeriod.present ? data.lastPeriod.value : this.lastPeriod,
@@ -2119,6 +2169,8 @@ class PregnancyProfileRow extends DataClass
   String toString() {
     return (StringBuffer('PregnancyProfileRow(')
           ..write('id: $id, ')
+          ..write('dadName: $dadName, ')
+          ..write('momName: $momName, ')
           ..write('dueDate: $dueDate, ')
           ..write('lastPeriod: $lastPeriod, ')
           ..write('partnerInfoJson: $partnerInfoJson, ')
@@ -2128,13 +2180,15 @@ class PregnancyProfileRow extends DataClass
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, dueDate, lastPeriod, partnerInfoJson, updatedAt);
+  int get hashCode => Object.hash(
+      id, dadName, momName, dueDate, lastPeriod, partnerInfoJson, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is PregnancyProfileRow &&
           other.id == this.id &&
+          other.dadName == this.dadName &&
+          other.momName == this.momName &&
           other.dueDate == this.dueDate &&
           other.lastPeriod == this.lastPeriod &&
           other.partnerInfoJson == this.partnerInfoJson &&
@@ -2143,12 +2197,16 @@ class PregnancyProfileRow extends DataClass
 
 class PregnancyProfileCompanion extends UpdateCompanion<PregnancyProfileRow> {
   final Value<int> id;
+  final Value<String?> dadName;
+  final Value<String?> momName;
   final Value<DateTime?> dueDate;
   final Value<DateTime?> lastPeriod;
   final Value<String?> partnerInfoJson;
   final Value<DateTime> updatedAt;
   const PregnancyProfileCompanion({
     this.id = const Value.absent(),
+    this.dadName = const Value.absent(),
+    this.momName = const Value.absent(),
     this.dueDate = const Value.absent(),
     this.lastPeriod = const Value.absent(),
     this.partnerInfoJson = const Value.absent(),
@@ -2156,6 +2214,8 @@ class PregnancyProfileCompanion extends UpdateCompanion<PregnancyProfileRow> {
   });
   PregnancyProfileCompanion.insert({
     this.id = const Value.absent(),
+    this.dadName = const Value.absent(),
+    this.momName = const Value.absent(),
     this.dueDate = const Value.absent(),
     this.lastPeriod = const Value.absent(),
     this.partnerInfoJson = const Value.absent(),
@@ -2163,6 +2223,8 @@ class PregnancyProfileCompanion extends UpdateCompanion<PregnancyProfileRow> {
   });
   static Insertable<PregnancyProfileRow> custom({
     Expression<int>? id,
+    Expression<String>? dadName,
+    Expression<String>? momName,
     Expression<DateTime>? dueDate,
     Expression<DateTime>? lastPeriod,
     Expression<String>? partnerInfoJson,
@@ -2170,6 +2232,8 @@ class PregnancyProfileCompanion extends UpdateCompanion<PregnancyProfileRow> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (dadName != null) 'dad_name': dadName,
+      if (momName != null) 'mom_name': momName,
       if (dueDate != null) 'due_date': dueDate,
       if (lastPeriod != null) 'last_period': lastPeriod,
       if (partnerInfoJson != null) 'partner_info_json': partnerInfoJson,
@@ -2179,12 +2243,16 @@ class PregnancyProfileCompanion extends UpdateCompanion<PregnancyProfileRow> {
 
   PregnancyProfileCompanion copyWith(
       {Value<int>? id,
+      Value<String?>? dadName,
+      Value<String?>? momName,
       Value<DateTime?>? dueDate,
       Value<DateTime?>? lastPeriod,
       Value<String?>? partnerInfoJson,
       Value<DateTime>? updatedAt}) {
     return PregnancyProfileCompanion(
       id: id ?? this.id,
+      dadName: dadName ?? this.dadName,
+      momName: momName ?? this.momName,
       dueDate: dueDate ?? this.dueDate,
       lastPeriod: lastPeriod ?? this.lastPeriod,
       partnerInfoJson: partnerInfoJson ?? this.partnerInfoJson,
@@ -2197,6 +2265,12 @@ class PregnancyProfileCompanion extends UpdateCompanion<PregnancyProfileRow> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (dadName.present) {
+      map['dad_name'] = Variable<String>(dadName.value);
+    }
+    if (momName.present) {
+      map['mom_name'] = Variable<String>(momName.value);
     }
     if (dueDate.present) {
       map['due_date'] = Variable<DateTime>(dueDate.value);
@@ -2217,6 +2291,8 @@ class PregnancyProfileCompanion extends UpdateCompanion<PregnancyProfileRow> {
   String toString() {
     return (StringBuffer('PregnancyProfileCompanion(')
           ..write('id: $id, ')
+          ..write('dadName: $dadName, ')
+          ..write('momName: $momName, ')
           ..write('dueDate: $dueDate, ')
           ..write('lastPeriod: $lastPeriod, ')
           ..write('partnerInfoJson: $partnerInfoJson, ')
@@ -4067,6 +4143,8 @@ class $$BellyPhotosTableOrderingComposer
 typedef $$PregnancyProfileTableCreateCompanionBuilder
     = PregnancyProfileCompanion Function({
   Value<int> id,
+  Value<String?> dadName,
+  Value<String?> momName,
   Value<DateTime?> dueDate,
   Value<DateTime?> lastPeriod,
   Value<String?> partnerInfoJson,
@@ -4075,6 +4153,8 @@ typedef $$PregnancyProfileTableCreateCompanionBuilder
 typedef $$PregnancyProfileTableUpdateCompanionBuilder
     = PregnancyProfileCompanion Function({
   Value<int> id,
+  Value<String?> dadName,
+  Value<String?> momName,
   Value<DateTime?> dueDate,
   Value<DateTime?> lastPeriod,
   Value<String?> partnerInfoJson,
@@ -4100,6 +4180,8 @@ class $$PregnancyProfileTableTableManager extends RootTableManager<
               $$PregnancyProfileTableOrderingComposer(ComposerState(db, table)),
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<String?> dadName = const Value.absent(),
+            Value<String?> momName = const Value.absent(),
             Value<DateTime?> dueDate = const Value.absent(),
             Value<DateTime?> lastPeriod = const Value.absent(),
             Value<String?> partnerInfoJson = const Value.absent(),
@@ -4107,6 +4189,8 @@ class $$PregnancyProfileTableTableManager extends RootTableManager<
           }) =>
               PregnancyProfileCompanion(
             id: id,
+            dadName: dadName,
+            momName: momName,
             dueDate: dueDate,
             lastPeriod: lastPeriod,
             partnerInfoJson: partnerInfoJson,
@@ -4114,6 +4198,8 @@ class $$PregnancyProfileTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<String?> dadName = const Value.absent(),
+            Value<String?> momName = const Value.absent(),
             Value<DateTime?> dueDate = const Value.absent(),
             Value<DateTime?> lastPeriod = const Value.absent(),
             Value<String?> partnerInfoJson = const Value.absent(),
@@ -4121,6 +4207,8 @@ class $$PregnancyProfileTableTableManager extends RootTableManager<
           }) =>
               PregnancyProfileCompanion.insert(
             id: id,
+            dadName: dadName,
+            momName: momName,
             dueDate: dueDate,
             lastPeriod: lastPeriod,
             partnerInfoJson: partnerInfoJson,
@@ -4134,6 +4222,16 @@ class $$PregnancyProfileTableFilterComposer
   $$PregnancyProfileTableFilterComposer(super.$state);
   ColumnFilters<int> get id => $state.composableBuilder(
       column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get dadName => $state.composableBuilder(
+      column: $state.table.dadName,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get momName => $state.composableBuilder(
+      column: $state.table.momName,
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 
@@ -4163,6 +4261,16 @@ class $$PregnancyProfileTableOrderingComposer
   $$PregnancyProfileTableOrderingComposer(super.$state);
   ColumnOrderings<int> get id => $state.composableBuilder(
       column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get dadName => $state.composableBuilder(
+      column: $state.table.dadName,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get momName => $state.composableBuilder(
+      column: $state.table.momName,
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
 

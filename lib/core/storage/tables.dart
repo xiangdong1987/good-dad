@@ -71,6 +71,8 @@ class BellyPhotos extends Table {
 @DataClassName('PregnancyProfileRow')
 class PregnancyProfile extends Table {
   IntColumn get id => integer().autoIncrement()();
+  TextColumn get dadName => text().nullable()();
+  TextColumn get momName => text().nullable()();
   DateTimeColumn get dueDate => dateTime().nullable()();
   DateTimeColumn get lastPeriod => dateTime().nullable()();
   TextColumn get partnerInfoJson => text().nullable()();

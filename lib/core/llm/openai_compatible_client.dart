@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/llm_config.dart';
 import 'llm_client.dart';
@@ -157,6 +156,55 @@ class OpenAICompatibleClient extends LlmClient {
     yield LlmChunk('', done: true);
   }
 
+  /// 非流式调用，返回 assistant 文本。
+  ///
+  /// 出错时把服务端 body 拼进异常 message 方便排查。
+  Future<String> chatOnceJson(
+    List<LlmMessage> messages, {
+    String? model,
+    double? temperature,
+    bool needsVision = false,
+  }) async {
+    if (!config.isComplete) {
+      throw const LlmException('LLM 未配置完整 (baseURL / apiKey / model)');
+    }
+    final usedModel =
+        model ?? (needsVision ? config.visionModel : config.chatModel);
+    final body = <String, dynamic>{
+      'model': usedModel,
+      'stream': false,
+      'temperature': temperature ?? 0.7,
+      'messages': messages.map(_encodeMessage).toList(),
+    };
+
+    try {
+      final resp = await _dio.post<Map<String, dynamic>>(
+        _resolveUrl(),
+        data: body,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${config.apiKey}',
+            'Content-Type': 'application/json',
+          },
+          responseType: ResponseType.json,
+        ),
+      );
+      final data = resp.data;
+      if (data == null) return '';
+      final choices = data['choices'];
+      if (choices is List && choices.isNotEmpty) {
+        final msg = choices.first['message'];
+        if (msg is Map && msg['content'] is String) {
+          return msg['content'] as String;
+        }
+      }
+      return '';
+    } on DioException catch (e) {
+      throw LlmException(_formatDioError(e),
+          statusCode: e.response?.statusCode, cause: e);
+    }
+  }
+
   /// Quick non-streaming sanity check for the settings page.
   ///
   /// Uses non-streaming JSON because some providers (especially Chinese
@@ -265,8 +313,3 @@ class OpenAICompatibleClient extends LlmClient {
   }
 }
 
-final llmClientProvider = Provider<LlmClient?>((ref) {
-  final cfg = ref.watch(llmConfigProvider).valueOrNull;
-  if (cfg == null || !cfg.isComplete) return null;
-  return OpenAICompatibleClient(cfg);
-});
