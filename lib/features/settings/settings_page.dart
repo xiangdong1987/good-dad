@@ -1,0 +1,238 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/config/llm_config.dart';
+import '../../core/llm/openai_compatible_client.dart';
+import '../../core/llm/types.dart';
+
+class SettingsPage extends ConsumerStatefulWidget {
+  const SettingsPage({super.key});
+
+  @override
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends ConsumerState<SettingsPage> {
+  final _baseUrlCtl = TextEditingController();
+  final _apiKeyCtl = TextEditingController();
+  final _chatModelCtl = TextEditingController();
+  final _visionModelCtl = TextEditingController();
+
+  bool _hydrated = false;
+  bool _testing = false;
+  String? _testResult;
+  bool _testOk = false;
+
+  @override
+  void dispose() {
+    _baseUrlCtl.dispose();
+    _apiKeyCtl.dispose();
+    _chatModelCtl.dispose();
+    _visionModelCtl.dispose();
+    super.dispose();
+  }
+
+  void _hydrate(LlmConfig cfg) {
+    _baseUrlCtl.text = cfg.baseUrl;
+    _apiKeyCtl.text = cfg.apiKey;
+    _chatModelCtl.text = cfg.chatModel;
+    _visionModelCtl.text = cfg.visionModel;
+    _hydrated = true;
+  }
+
+  Future<void> _save() async {
+    final cfg = LlmConfig(
+      baseUrl: _baseUrlCtl.text.trim(),
+      apiKey: _apiKeyCtl.text.trim(),
+      chatModel: _chatModelCtl.text.trim(),
+      visionModel: _visionModelCtl.text.trim(),
+    );
+    await ref.read(llmConfigProvider.notifier).save(cfg);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已保存')),
+      );
+    }
+  }
+
+  Future<void> _runTest() async {
+    setState(() {
+      _testing = true;
+      _testResult = null;
+    });
+    await _save();
+    final client = ref.read(llmClientProvider);
+    if (client == null) {
+      setState(() {
+        _testing = false;
+        _testOk = false;
+        _testResult = '配置不完整';
+      });
+      return;
+    }
+    try {
+      final reply = await (client as OpenAICompatibleClient).testEcho();
+      setState(() {
+        _testOk = true;
+        _testResult = '✅ $reply';
+      });
+    } on LlmException catch (e) {
+      setState(() {
+        _testOk = false;
+        _testResult = '❌ ${e.statusCode ?? ''} ${e.message}';
+      });
+    } catch (e) {
+      setState(() {
+        _testOk = false;
+        _testResult = '❌ $e';
+      });
+    } finally {
+      if (mounted) setState(() => _testing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cfgAsync = ref.watch(llmConfigProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('设置'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/'),
+        ),
+      ),
+      body: cfgAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('读取配置失败: $e')),
+        data: (cfg) {
+          if (!_hydrated) _hydrate(cfg);
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              const _SectionTitle('LLM 服务'),
+              const SizedBox(height: 8),
+              Text(
+                '使用 OpenAI 兼容协议（Chat Completions）。可填 OpenAI 官方、DeepSeek、通义千问、豆包、本地 Ollama 等任意兼容服务。',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _baseUrlCtl,
+                decoration: const InputDecoration(
+                  labelText: 'Base URL',
+                  hintText: '例如 https://api.openai.com/v1',
+                ),
+                keyboardType: TextInputType.url,
+                autocorrect: false,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _apiKeyCtl,
+                decoration: const InputDecoration(
+                  labelText: 'API Key',
+                  hintText: 'sk-...',
+                ),
+                obscureText: true,
+                autocorrect: false,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _chatModelCtl,
+                decoration: const InputDecoration(
+                  labelText: '聊天模型 (chat model)',
+                  hintText: '例如 gpt-4o-mini / deepseek-chat',
+                ),
+                autocorrect: false,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _visionModelCtl,
+                decoration: const InputDecoration(
+                  labelText: '视觉模型 (vision model)',
+                  hintText: '例如 gpt-4o / qwen-vl-plus',
+                ),
+                autocorrect: false,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      onPressed: _testing ? null : _save,
+                      icon: const Icon(Icons.save_outlined),
+                      label: const Text('保存'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: _testing ? null : _runTest,
+                      icon: _testing
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.bolt_outlined),
+                      label: const Text('保存并测试'),
+                    ),
+                  ),
+                ],
+              ),
+              if (_testResult != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: _testOk
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : Theme.of(context).colorScheme.errorContainer,
+                  ),
+                  child: Text(_testResult!),
+                ),
+              ],
+              const SizedBox(height: 32),
+              const _SectionTitle('数据'),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: const Icon(Icons.memory_outlined),
+                title: const Text('记忆管理'),
+                subtitle: const Text('M2 起可用'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {},
+              ),
+              ListTile(
+                leading: const Icon(Icons.extension_outlined),
+                title: const Text('Skill 列表'),
+                subtitle: const Text('M2 起可用'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {},
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
+  @override
+  Widget build(BuildContext context) => Text(
+        text,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      );
+}
