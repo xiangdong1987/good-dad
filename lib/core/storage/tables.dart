@@ -106,6 +106,38 @@ class ChecklistInstances extends Table {
       dateTime().withDefault(currentDateAndTime)();
 }
 
+/// 每周孕期简报缓存（每周一行，pregnancy-week skill 跑出来的结构化结果）。
+@DataClassName('WeeklyBriefRow')
+class WeeklyBriefs extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  /// 孕周 1-42，唯一。
+  IntColumn get week => integer()();
+  TextColumn get rawText => text()();
+  TextColumn get structuredJson => text().nullable()();
+  DateTimeColumn get generatedAt =>
+      dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+        {week},
+      ];
+}
+
+/// 用户每天的待办 / 提醒（可关联到日历某一天）。
+/// kind 用枚举字符串：todo / checkup / milestone / note。
+@DataClassName('DailyTaskRow')
+class DailyTasks extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get title => text()();
+  TextColumn get notes => text().nullable()();
+  BoolColumn get done => boolean().withDefault(const Constant(false))();
+  /// 该任务关联的日期（取当地零点；用 epoch ms 存）。
+  DateTimeColumn get forDate => dateTime()();
+  TextColumn get kind => text().withDefault(const Constant('todo'))();
+  DateTimeColumn get createdAt =>
+      dateTime().withDefault(currentDateAndTime)();
+}
+
 @DataClassName('ChecklistItemRow')
 class ChecklistItems extends Table {
   IntColumn get id => integer().autoIncrement()();

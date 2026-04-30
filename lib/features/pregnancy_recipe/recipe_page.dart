@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/profile/profile.dart';
+import '../../core/profile/profile_repository.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets/cream_widgets.dart';
 
-/// 孕期食谱 · Recipe
-class RecipePage extends StatelessWidget {
+/// 孕期食谱 · Recipe（M2 阶段为视觉占位 mock，文字孕周已联通）
+class RecipePage extends ConsumerWidget {
   const RecipePage({super.key});
 
   static const _ingredients = [
@@ -15,7 +18,11 @@ class RecipePage extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile =
+        ref.watch(profileProvider).valueOrNull ?? FamilyProfile.empty;
+    final week = profile.currentWeek();
+    final subtitle = week == null ? '记得设孕周' : '孕 $week 周 · 该补钙 + 铁';
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -33,8 +40,8 @@ class RecipePage extends StatelessWidget {
         children: [
           Text('今晚吃啥？', style: Theme.of(context).textTheme.displayLarge),
           const SizedBox(height: 4),
-          const Text('孕 24 周 · 该补钙 + 铁',
-              style: TextStyle(
+          Text(subtitle,
+              style: const TextStyle(
                   fontFamily: 'Nunito',
                   fontWeight: FontWeight.w600,
                   fontSize: 13,

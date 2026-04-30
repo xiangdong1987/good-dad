@@ -3291,6 +3291,690 @@ class ChecklistItemsCompanion extends UpdateCompanion<ChecklistItemRow> {
   }
 }
 
+class $DailyTasksTable extends DailyTasks
+    with TableInfo<$DailyTasksTable, DailyTaskRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DailyTasksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+      'title', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+      'notes', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _doneMeta = const VerificationMeta('done');
+  @override
+  late final GeneratedColumn<bool> done = GeneratedColumn<bool>(
+      'done', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("done" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _forDateMeta =
+      const VerificationMeta('forDate');
+  @override
+  late final GeneratedColumn<DateTime> forDate = GeneratedColumn<DateTime>(
+      'for_date', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('todo'));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, title, notes, done, forDate, kind, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'daily_tasks';
+  @override
+  VerificationContext validateIntegrity(Insertable<DailyTaskRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+          _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+          _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
+    }
+    if (data.containsKey('done')) {
+      context.handle(
+          _doneMeta, done.isAcceptableOrUnknown(data['done']!, _doneMeta));
+    }
+    if (data.containsKey('for_date')) {
+      context.handle(_forDateMeta,
+          forDate.isAcceptableOrUnknown(data['for_date']!, _forDateMeta));
+    } else if (isInserting) {
+      context.missing(_forDateMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DailyTaskRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DailyTaskRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      title: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
+      notes: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}notes']),
+      done: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}done'])!,
+      forDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}for_date'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $DailyTasksTable createAlias(String alias) {
+    return $DailyTasksTable(attachedDatabase, alias);
+  }
+}
+
+class DailyTaskRow extends DataClass implements Insertable<DailyTaskRow> {
+  final int id;
+  final String title;
+  final String? notes;
+  final bool done;
+
+  /// 该任务关联的日期（取当地零点；用 epoch ms 存）。
+  final DateTime forDate;
+  final String kind;
+  final DateTime createdAt;
+  const DailyTaskRow(
+      {required this.id,
+      required this.title,
+      this.notes,
+      required this.done,
+      required this.forDate,
+      required this.kind,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['done'] = Variable<bool>(done);
+    map['for_date'] = Variable<DateTime>(forDate);
+    map['kind'] = Variable<String>(kind);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  DailyTasksCompanion toCompanion(bool nullToAbsent) {
+    return DailyTasksCompanion(
+      id: Value(id),
+      title: Value(title),
+      notes:
+          notes == null && nullToAbsent ? const Value.absent() : Value(notes),
+      done: Value(done),
+      forDate: Value(forDate),
+      kind: Value(kind),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory DailyTaskRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DailyTaskRow(
+      id: serializer.fromJson<int>(json['id']),
+      title: serializer.fromJson<String>(json['title']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      done: serializer.fromJson<bool>(json['done']),
+      forDate: serializer.fromJson<DateTime>(json['forDate']),
+      kind: serializer.fromJson<String>(json['kind']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'title': serializer.toJson<String>(title),
+      'notes': serializer.toJson<String?>(notes),
+      'done': serializer.toJson<bool>(done),
+      'forDate': serializer.toJson<DateTime>(forDate),
+      'kind': serializer.toJson<String>(kind),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  DailyTaskRow copyWith(
+          {int? id,
+          String? title,
+          Value<String?> notes = const Value.absent(),
+          bool? done,
+          DateTime? forDate,
+          String? kind,
+          DateTime? createdAt}) =>
+      DailyTaskRow(
+        id: id ?? this.id,
+        title: title ?? this.title,
+        notes: notes.present ? notes.value : this.notes,
+        done: done ?? this.done,
+        forDate: forDate ?? this.forDate,
+        kind: kind ?? this.kind,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  DailyTaskRow copyWithCompanion(DailyTasksCompanion data) {
+    return DailyTaskRow(
+      id: data.id.present ? data.id.value : this.id,
+      title: data.title.present ? data.title.value : this.title,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      done: data.done.present ? data.done.value : this.done,
+      forDate: data.forDate.present ? data.forDate.value : this.forDate,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyTaskRow(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('notes: $notes, ')
+          ..write('done: $done, ')
+          ..write('forDate: $forDate, ')
+          ..write('kind: $kind, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, title, notes, done, forDate, kind, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DailyTaskRow &&
+          other.id == this.id &&
+          other.title == this.title &&
+          other.notes == this.notes &&
+          other.done == this.done &&
+          other.forDate == this.forDate &&
+          other.kind == this.kind &&
+          other.createdAt == this.createdAt);
+}
+
+class DailyTasksCompanion extends UpdateCompanion<DailyTaskRow> {
+  final Value<int> id;
+  final Value<String> title;
+  final Value<String?> notes;
+  final Value<bool> done;
+  final Value<DateTime> forDate;
+  final Value<String> kind;
+  final Value<DateTime> createdAt;
+  const DailyTasksCompanion({
+    this.id = const Value.absent(),
+    this.title = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.done = const Value.absent(),
+    this.forDate = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  DailyTasksCompanion.insert({
+    this.id = const Value.absent(),
+    required String title,
+    this.notes = const Value.absent(),
+    this.done = const Value.absent(),
+    required DateTime forDate,
+    this.kind = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  })  : title = Value(title),
+        forDate = Value(forDate);
+  static Insertable<DailyTaskRow> custom({
+    Expression<int>? id,
+    Expression<String>? title,
+    Expression<String>? notes,
+    Expression<bool>? done,
+    Expression<DateTime>? forDate,
+    Expression<String>? kind,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (title != null) 'title': title,
+      if (notes != null) 'notes': notes,
+      if (done != null) 'done': done,
+      if (forDate != null) 'for_date': forDate,
+      if (kind != null) 'kind': kind,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  DailyTasksCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? title,
+      Value<String?>? notes,
+      Value<bool>? done,
+      Value<DateTime>? forDate,
+      Value<String>? kind,
+      Value<DateTime>? createdAt}) {
+    return DailyTasksCompanion(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      notes: notes ?? this.notes,
+      done: done ?? this.done,
+      forDate: forDate ?? this.forDate,
+      kind: kind ?? this.kind,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (done.present) {
+      map['done'] = Variable<bool>(done.value);
+    }
+    if (forDate.present) {
+      map['for_date'] = Variable<DateTime>(forDate.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyTasksCompanion(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('notes: $notes, ')
+          ..write('done: $done, ')
+          ..write('forDate: $forDate, ')
+          ..write('kind: $kind, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $WeeklyBriefsTable extends WeeklyBriefs
+    with TableInfo<$WeeklyBriefsTable, WeeklyBriefRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WeeklyBriefsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _weekMeta = const VerificationMeta('week');
+  @override
+  late final GeneratedColumn<int> week = GeneratedColumn<int>(
+      'week', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _rawTextMeta =
+      const VerificationMeta('rawText');
+  @override
+  late final GeneratedColumn<String> rawText = GeneratedColumn<String>(
+      'raw_text', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _structuredJsonMeta =
+      const VerificationMeta('structuredJson');
+  @override
+  late final GeneratedColumn<String> structuredJson = GeneratedColumn<String>(
+      'structured_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _generatedAtMeta =
+      const VerificationMeta('generatedAt');
+  @override
+  late final GeneratedColumn<DateTime> generatedAt = GeneratedColumn<DateTime>(
+      'generated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, week, rawText, structuredJson, generatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'weekly_briefs';
+  @override
+  VerificationContext validateIntegrity(Insertable<WeeklyBriefRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('week')) {
+      context.handle(
+          _weekMeta, week.isAcceptableOrUnknown(data['week']!, _weekMeta));
+    } else if (isInserting) {
+      context.missing(_weekMeta);
+    }
+    if (data.containsKey('raw_text')) {
+      context.handle(_rawTextMeta,
+          rawText.isAcceptableOrUnknown(data['raw_text']!, _rawTextMeta));
+    } else if (isInserting) {
+      context.missing(_rawTextMeta);
+    }
+    if (data.containsKey('structured_json')) {
+      context.handle(
+          _structuredJsonMeta,
+          structuredJson.isAcceptableOrUnknown(
+              data['structured_json']!, _structuredJsonMeta));
+    }
+    if (data.containsKey('generated_at')) {
+      context.handle(
+          _generatedAtMeta,
+          generatedAt.isAcceptableOrUnknown(
+              data['generated_at']!, _generatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+        {week},
+      ];
+  @override
+  WeeklyBriefRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WeeklyBriefRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      week: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}week'])!,
+      rawText: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}raw_text'])!,
+      structuredJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}structured_json']),
+      generatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}generated_at'])!,
+    );
+  }
+
+  @override
+  $WeeklyBriefsTable createAlias(String alias) {
+    return $WeeklyBriefsTable(attachedDatabase, alias);
+  }
+}
+
+class WeeklyBriefRow extends DataClass implements Insertable<WeeklyBriefRow> {
+  final int id;
+
+  /// 孕周 1-42，唯一。
+  final int week;
+  final String rawText;
+  final String? structuredJson;
+  final DateTime generatedAt;
+  const WeeklyBriefRow(
+      {required this.id,
+      required this.week,
+      required this.rawText,
+      this.structuredJson,
+      required this.generatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['week'] = Variable<int>(week);
+    map['raw_text'] = Variable<String>(rawText);
+    if (!nullToAbsent || structuredJson != null) {
+      map['structured_json'] = Variable<String>(structuredJson);
+    }
+    map['generated_at'] = Variable<DateTime>(generatedAt);
+    return map;
+  }
+
+  WeeklyBriefsCompanion toCompanion(bool nullToAbsent) {
+    return WeeklyBriefsCompanion(
+      id: Value(id),
+      week: Value(week),
+      rawText: Value(rawText),
+      structuredJson: structuredJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(structuredJson),
+      generatedAt: Value(generatedAt),
+    );
+  }
+
+  factory WeeklyBriefRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WeeklyBriefRow(
+      id: serializer.fromJson<int>(json['id']),
+      week: serializer.fromJson<int>(json['week']),
+      rawText: serializer.fromJson<String>(json['rawText']),
+      structuredJson: serializer.fromJson<String?>(json['structuredJson']),
+      generatedAt: serializer.fromJson<DateTime>(json['generatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'week': serializer.toJson<int>(week),
+      'rawText': serializer.toJson<String>(rawText),
+      'structuredJson': serializer.toJson<String?>(structuredJson),
+      'generatedAt': serializer.toJson<DateTime>(generatedAt),
+    };
+  }
+
+  WeeklyBriefRow copyWith(
+          {int? id,
+          int? week,
+          String? rawText,
+          Value<String?> structuredJson = const Value.absent(),
+          DateTime? generatedAt}) =>
+      WeeklyBriefRow(
+        id: id ?? this.id,
+        week: week ?? this.week,
+        rawText: rawText ?? this.rawText,
+        structuredJson:
+            structuredJson.present ? structuredJson.value : this.structuredJson,
+        generatedAt: generatedAt ?? this.generatedAt,
+      );
+  WeeklyBriefRow copyWithCompanion(WeeklyBriefsCompanion data) {
+    return WeeklyBriefRow(
+      id: data.id.present ? data.id.value : this.id,
+      week: data.week.present ? data.week.value : this.week,
+      rawText: data.rawText.present ? data.rawText.value : this.rawText,
+      structuredJson: data.structuredJson.present
+          ? data.structuredJson.value
+          : this.structuredJson,
+      generatedAt:
+          data.generatedAt.present ? data.generatedAt.value : this.generatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WeeklyBriefRow(')
+          ..write('id: $id, ')
+          ..write('week: $week, ')
+          ..write('rawText: $rawText, ')
+          ..write('structuredJson: $structuredJson, ')
+          ..write('generatedAt: $generatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, week, rawText, structuredJson, generatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WeeklyBriefRow &&
+          other.id == this.id &&
+          other.week == this.week &&
+          other.rawText == this.rawText &&
+          other.structuredJson == this.structuredJson &&
+          other.generatedAt == this.generatedAt);
+}
+
+class WeeklyBriefsCompanion extends UpdateCompanion<WeeklyBriefRow> {
+  final Value<int> id;
+  final Value<int> week;
+  final Value<String> rawText;
+  final Value<String?> structuredJson;
+  final Value<DateTime> generatedAt;
+  const WeeklyBriefsCompanion({
+    this.id = const Value.absent(),
+    this.week = const Value.absent(),
+    this.rawText = const Value.absent(),
+    this.structuredJson = const Value.absent(),
+    this.generatedAt = const Value.absent(),
+  });
+  WeeklyBriefsCompanion.insert({
+    this.id = const Value.absent(),
+    required int week,
+    required String rawText,
+    this.structuredJson = const Value.absent(),
+    this.generatedAt = const Value.absent(),
+  })  : week = Value(week),
+        rawText = Value(rawText);
+  static Insertable<WeeklyBriefRow> custom({
+    Expression<int>? id,
+    Expression<int>? week,
+    Expression<String>? rawText,
+    Expression<String>? structuredJson,
+    Expression<DateTime>? generatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (week != null) 'week': week,
+      if (rawText != null) 'raw_text': rawText,
+      if (structuredJson != null) 'structured_json': structuredJson,
+      if (generatedAt != null) 'generated_at': generatedAt,
+    });
+  }
+
+  WeeklyBriefsCompanion copyWith(
+      {Value<int>? id,
+      Value<int>? week,
+      Value<String>? rawText,
+      Value<String?>? structuredJson,
+      Value<DateTime>? generatedAt}) {
+    return WeeklyBriefsCompanion(
+      id: id ?? this.id,
+      week: week ?? this.week,
+      rawText: rawText ?? this.rawText,
+      structuredJson: structuredJson ?? this.structuredJson,
+      generatedAt: generatedAt ?? this.generatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (week.present) {
+      map['week'] = Variable<int>(week.value);
+    }
+    if (rawText.present) {
+      map['raw_text'] = Variable<String>(rawText.value);
+    }
+    if (structuredJson.present) {
+      map['structured_json'] = Variable<String>(structuredJson.value);
+    }
+    if (generatedAt.present) {
+      map['generated_at'] = Variable<DateTime>(generatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WeeklyBriefsCompanion(')
+          ..write('id: $id, ')
+          ..write('week: $week, ')
+          ..write('rawText: $rawText, ')
+          ..write('structuredJson: $structuredJson, ')
+          ..write('generatedAt: $generatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3306,6 +3990,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ChecklistInstancesTable checklistInstances =
       $ChecklistInstancesTable(this);
   late final $ChecklistItemsTable checklistItems = $ChecklistItemsTable(this);
+  late final $DailyTasksTable dailyTasks = $DailyTasksTable(this);
+  late final $WeeklyBriefsTable weeklyBriefs = $WeeklyBriefsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3319,7 +4005,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         pregnancyProfile,
         checklistTemplates,
         checklistInstances,
-        checklistItems
+        checklistItems,
+        dailyTasks,
+        weeklyBriefs
       ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules(
@@ -4770,6 +5458,280 @@ class $$ChecklistItemsTableOrderingComposer
   }
 }
 
+typedef $$DailyTasksTableCreateCompanionBuilder = DailyTasksCompanion Function({
+  Value<int> id,
+  required String title,
+  Value<String?> notes,
+  Value<bool> done,
+  required DateTime forDate,
+  Value<String> kind,
+  Value<DateTime> createdAt,
+});
+typedef $$DailyTasksTableUpdateCompanionBuilder = DailyTasksCompanion Function({
+  Value<int> id,
+  Value<String> title,
+  Value<String?> notes,
+  Value<bool> done,
+  Value<DateTime> forDate,
+  Value<String> kind,
+  Value<DateTime> createdAt,
+});
+
+class $$DailyTasksTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $DailyTasksTable,
+    DailyTaskRow,
+    $$DailyTasksTableFilterComposer,
+    $$DailyTasksTableOrderingComposer,
+    $$DailyTasksTableCreateCompanionBuilder,
+    $$DailyTasksTableUpdateCompanionBuilder> {
+  $$DailyTasksTableTableManager(_$AppDatabase db, $DailyTasksTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer:
+              $$DailyTasksTableFilterComposer(ComposerState(db, table)),
+          orderingComposer:
+              $$DailyTasksTableOrderingComposer(ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> title = const Value.absent(),
+            Value<String?> notes = const Value.absent(),
+            Value<bool> done = const Value.absent(),
+            Value<DateTime> forDate = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              DailyTasksCompanion(
+            id: id,
+            title: title,
+            notes: notes,
+            done: done,
+            forDate: forDate,
+            kind: kind,
+            createdAt: createdAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String title,
+            Value<String?> notes = const Value.absent(),
+            Value<bool> done = const Value.absent(),
+            required DateTime forDate,
+            Value<String> kind = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              DailyTasksCompanion.insert(
+            id: id,
+            title: title,
+            notes: notes,
+            done: done,
+            forDate: forDate,
+            kind: kind,
+            createdAt: createdAt,
+          ),
+        ));
+}
+
+class $$DailyTasksTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $DailyTasksTable> {
+  $$DailyTasksTableFilterComposer(super.$state);
+  ColumnFilters<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get title => $state.composableBuilder(
+      column: $state.table.title,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get notes => $state.composableBuilder(
+      column: $state.table.notes,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<bool> get done => $state.composableBuilder(
+      column: $state.table.done,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get forDate => $state.composableBuilder(
+      column: $state.table.forDate,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get kind => $state.composableBuilder(
+      column: $state.table.kind,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+}
+
+class $$DailyTasksTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $DailyTasksTable> {
+  $$DailyTasksTableOrderingComposer(super.$state);
+  ColumnOrderings<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get title => $state.composableBuilder(
+      column: $state.table.title,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get notes => $state.composableBuilder(
+      column: $state.table.notes,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<bool> get done => $state.composableBuilder(
+      column: $state.table.done,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get forDate => $state.composableBuilder(
+      column: $state.table.forDate,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get kind => $state.composableBuilder(
+      column: $state.table.kind,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+}
+
+typedef $$WeeklyBriefsTableCreateCompanionBuilder = WeeklyBriefsCompanion
+    Function({
+  Value<int> id,
+  required int week,
+  required String rawText,
+  Value<String?> structuredJson,
+  Value<DateTime> generatedAt,
+});
+typedef $$WeeklyBriefsTableUpdateCompanionBuilder = WeeklyBriefsCompanion
+    Function({
+  Value<int> id,
+  Value<int> week,
+  Value<String> rawText,
+  Value<String?> structuredJson,
+  Value<DateTime> generatedAt,
+});
+
+class $$WeeklyBriefsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $WeeklyBriefsTable,
+    WeeklyBriefRow,
+    $$WeeklyBriefsTableFilterComposer,
+    $$WeeklyBriefsTableOrderingComposer,
+    $$WeeklyBriefsTableCreateCompanionBuilder,
+    $$WeeklyBriefsTableUpdateCompanionBuilder> {
+  $$WeeklyBriefsTableTableManager(_$AppDatabase db, $WeeklyBriefsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer:
+              $$WeeklyBriefsTableFilterComposer(ComposerState(db, table)),
+          orderingComposer:
+              $$WeeklyBriefsTableOrderingComposer(ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int> week = const Value.absent(),
+            Value<String> rawText = const Value.absent(),
+            Value<String?> structuredJson = const Value.absent(),
+            Value<DateTime> generatedAt = const Value.absent(),
+          }) =>
+              WeeklyBriefsCompanion(
+            id: id,
+            week: week,
+            rawText: rawText,
+            structuredJson: structuredJson,
+            generatedAt: generatedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required int week,
+            required String rawText,
+            Value<String?> structuredJson = const Value.absent(),
+            Value<DateTime> generatedAt = const Value.absent(),
+          }) =>
+              WeeklyBriefsCompanion.insert(
+            id: id,
+            week: week,
+            rawText: rawText,
+            structuredJson: structuredJson,
+            generatedAt: generatedAt,
+          ),
+        ));
+}
+
+class $$WeeklyBriefsTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $WeeklyBriefsTable> {
+  $$WeeklyBriefsTableFilterComposer(super.$state);
+  ColumnFilters<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get week => $state.composableBuilder(
+      column: $state.table.week,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get rawText => $state.composableBuilder(
+      column: $state.table.rawText,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get structuredJson => $state.composableBuilder(
+      column: $state.table.structuredJson,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get generatedAt => $state.composableBuilder(
+      column: $state.table.generatedAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+}
+
+class $$WeeklyBriefsTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $WeeklyBriefsTable> {
+  $$WeeklyBriefsTableOrderingComposer(super.$state);
+  ColumnOrderings<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get week => $state.composableBuilder(
+      column: $state.table.week,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get rawText => $state.composableBuilder(
+      column: $state.table.rawText,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get structuredJson => $state.composableBuilder(
+      column: $state.table.structuredJson,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get generatedAt => $state.composableBuilder(
+      column: $state.table.generatedAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+}
+
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
@@ -4791,4 +5753,8 @@ class $AppDatabaseManager {
       $$ChecklistInstancesTableTableManager(_db, _db.checklistInstances);
   $$ChecklistItemsTableTableManager get checklistItems =>
       $$ChecklistItemsTableTableManager(_db, _db.checklistItems);
+  $$DailyTasksTableTableManager get dailyTasks =>
+      $$DailyTasksTableTableManager(_db, _db.dailyTasks);
+  $$WeeklyBriefsTableTableManager get weeklyBriefs =>
+      $$WeeklyBriefsTableTableManager(_db, _db.weeklyBriefs);
 }

@@ -28,13 +28,15 @@ LazyDatabase _openConnection() {
   ChecklistTemplates,
   ChecklistInstances,
   ChecklistItems,
+  DailyTasks,
+  WeeklyBriefs,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
   AppDatabase.test(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -43,6 +45,12 @@ class AppDatabase extends _$AppDatabase {
           if (from < 2) {
             await m.addColumn(pregnancyProfile, pregnancyProfile.dadName);
             await m.addColumn(pregnancyProfile, pregnancyProfile.momName);
+          }
+          if (from < 3) {
+            await m.createTable(dailyTasks);
+          }
+          if (from < 4) {
+            await m.createTable(weeklyBriefs);
           }
         },
         beforeOpen: (details) async {

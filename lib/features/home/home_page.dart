@@ -8,6 +8,7 @@ import '../../core/profile/profile_repository.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets/cream_widgets.dart';
 import '../onboarding/onboarding_page.dart';
+import 'today_card.dart';
 
 /// 首页 · 圆润奶油可爱风
 class HomePage extends ConsumerWidget {
@@ -90,38 +91,8 @@ class _HomeContent extends ConsumerWidget {
         ),
         const SizedBox(height: 18),
 
-        // 今日重点 hero card
-        CreamCard(
-          background: AppColors.peach300,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const CreamPill(
-                label: '✨ 今天重点',
-                background: Colors.white,
-                foreground: AppColors.peach700,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '${profile.momName ?? "妈妈"}今天感觉怎样？\n下班顺路问问她吧 🍊',
-                style: const TextStyle(
-                  fontFamily: 'Nunito',
-                  fontWeight: FontWeight.w900,
-                  fontSize: 18,
-                  height: 1.4,
-                  color: AppColors.ink900,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Row(children: [
-                CreamButton(label: '已记下 ✓', onPressed: () {}),
-                const SizedBox(width: 8),
-                CreamButton(
-                    label: '晚点说', ghost: true, onPressed: () {}),
-              ]),
-            ],
-          ),
-        ),
+        // 今日要点：当前孕周 + 今日 TODO + 加任务 + 打开日历
+        TodayCard(profile: profile),
         const SizedBox(height: 18),
 
         // LLM 状态
@@ -154,11 +125,7 @@ class _HomeContent extends ConsumerWidget {
 
         // 聊聊横条
         CreamCard(
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('聊聊 · M2 阶段联通')),
-            );
-          },
+          onTap: () => context.push('/chat'),
           padding: const EdgeInsets.all(14),
           child: Row(children: const [
             Sticker(emoji: '💬', size: 44),

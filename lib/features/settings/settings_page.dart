@@ -7,6 +7,8 @@ import '../../core/config/llm_config_provider.dart';
 import '../../core/llm/llm_providers.dart';
 import '../../core/llm/openai_compatible_client.dart';
 import '../../core/llm/types.dart';
+import '../../core/memory/memory_repository.dart';
+import '../../core/notification/weekly_notifier.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -295,21 +297,74 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ),
               ],
               const SizedBox(height: 32),
-              const _SectionTitle('数据'),
+              const _SectionTitle('家庭'),
               const SizedBox(height: 8),
               ListTile(
-                leading: const Icon(Icons.memory_outlined),
-                title: const Text('记忆管理'),
-                subtitle: const Text('M2 起可用'),
+                leading: const Icon(Icons.family_restroom_rounded),
+                title: const Text('家庭信息'),
+                subtitle: const Text('改称呼 / 当前孕周'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () {},
+                onTap: () => context.push('/profile-edit'),
               ),
               ListTile(
-                leading: const Icon(Icons.extension_outlined),
-                title: const Text('Skill 列表'),
-                subtitle: const Text('M2 起可用'),
+                leading: const Icon(Icons.calendar_month_rounded),
+                title: const Text('日历'),
+                subtitle: const Text('每天的安排 + 孕周'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () {},
+                onTap: () => context.push('/calendar'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.notifications_active_outlined),
+                title: const Text('测试通知'),
+                subtitle: const Text('确认通知通道是通的'),
+                trailing: const Icon(Icons.send_outlined),
+                onTap: () async {
+                  await WeeklyNotifier.requestPermissions();
+                  await WeeklyNotifier.debugFireOnce();
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('已发送一条测试通知')),
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+              const _SectionTitle('数据'),
+              const SizedBox(height: 8),
+              Consumer(builder: (ctx, ref, _) {
+                final pending =
+                    ref.watch(pendingMemoryCountProvider).valueOrNull ?? 0;
+                return ListTile(
+                  leading: const Icon(Icons.memory_outlined),
+                  title: const Text('记忆管理'),
+                  subtitle: Text(pending == 0
+                      ? '聊天里我会帮你沉淀长期事实'
+                      : '$pending 条待确认 · 去看看'),
+                  trailing: pending > 0
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Theme.of(ctx).colorScheme.error,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text('$pending',
+                              style: TextStyle(
+                                  color: Theme.of(ctx)
+                                      .colorScheme
+                                      .onError,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800)),
+                        )
+                      : const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/memory'),
+                );
+              }),
+              ListTile(
+                leading: const Icon(Icons.extension_outlined),
+                title: const Text('技能列表'),
+                subtitle: const Text('查看内置 SKILL.md'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/skills'),
               ),
             ],
           );

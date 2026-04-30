@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/notification/weekly_notifier.dart';
 import '../../core/profile/profile.dart';
 import '../../core/profile/profile_repository.dart';
 import '../../ui/theme.dart';
@@ -63,6 +64,9 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     await ref.read(profileProvider.notifier).save(
           FamilyProfile(dadName: dad, momName: mom, dueDate: dueDate),
         );
+    // 第一次使用时申请通知权限并调度（profile complete 后 main 会再调一次，幂等）
+    await WeeklyNotifier.requestPermissions();
+    await WeeklyNotifier.scheduleAll();
     if (!mounted) return;
     setState(() => _saving = false);
     // HomePage 监听 profileProvider，会自动重建到主页
