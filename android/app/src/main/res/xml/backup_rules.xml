@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android Auto Backup（API 23+ ≤ 30）规则。
+  默认就会备份 SQLite 与文档目录里的图片。这里显式列出来一遍，
+  并排除 secure_storage 的密钥（其实 Keystore 加密的内容跨设备也用不了，
+  Auto Backup 不会真的恢复出可用的 key）。
+-->
+<full-backup-content>
+    <include domain="database" path="."/>
+    <include domain="file" path="."/>
+    <include domain="sharedpref" path="."/>
+    <!-- secure_storage 的核心由 Android Keystore 在本机加密，跨设备恢复也用不了 -->
+    <exclude domain="sharedpref" path="FlutterSecureStorage.xml"/>
+</full-backup-content>

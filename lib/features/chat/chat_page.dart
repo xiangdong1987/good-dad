@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -43,14 +44,37 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   Future<void> _pickImage() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('拍照'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('从相册选'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
     try {
       final picked = await _picker.pickImage(
-        source: ImageSource.gallery,
+        source: source,
         maxWidth: 1600,
         imageQuality: 90,
       );
       if (picked == null) return;
       final bytes = await picked.readAsBytes();
+      if (!mounted) return;
       setState(() => _attachedImage = bytes);
     } catch (e) {
       if (!mounted) return;
@@ -199,9 +223,23 @@ class _Bubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: align,
                 children: [
+                  if (b.imagePath != null) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                            maxWidth: 220, maxHeight: 220),
+                        child: Image.file(
+                          File(b.imagePath!),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    if (b.text.isNotEmpty) const SizedBox(height: 6),
+                  ],
                   if (b.text.isEmpty && b.streaming)
                     const _TypingDots()
-                  else
+                  else if (b.text.isNotEmpty)
                     Text(
                       b.text,
                       style: const TextStyle(
@@ -385,7 +423,7 @@ class _AttachedImagePreview extends StatelessWidget {
           const SizedBox(width: 8),
           const Expanded(
             child: Text(
-              '已附图（发送后随消息一起发）',
+              '已附图 · 发送时会自动用视觉模型',
               style: TextStyle(
                 fontFamily: 'Nunito',
                 fontWeight: FontWeight.w700,

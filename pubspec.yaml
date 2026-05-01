@@ -35,7 +35,11 @@ dependencies:
   # Image / camera / sharing
   image_picker: ^1.1.0
   image: ^4.1.7
-  share_plus: ^9.0.0
+  share_plus: ^10.1.4
+
+  # Backup (zip 打包 + 文件选择)
+  archive: ^4.0.0
+  file_picker: ^8.1.4
 
   # Notifications
   flutter_local_notifications: ^17.1.2

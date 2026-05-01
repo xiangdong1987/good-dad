@@ -75,5 +75,29 @@ void main() {
     final p = FamilyProfile(dadName: 'a', momName: 'b', dueDate: due);
     expect(p.currentWeek(now: now), 24);
     expect(p.weeksToDue(now: now), 16);
+    expect(p.currentDayInWeek(now: now), 0);
+  });
+
+  test('FamilyProfile.dueDateFromCurrentWeek 支持 dayInWeek', () {
+    final now = DateTime(2026, 4, 30);
+    final due = FamilyProfile.dueDateFromCurrentWeek(24, dayInWeek: 3, now: now);
+    final p = FamilyProfile(dadName: 'a', momName: 'b', dueDate: due);
+    expect(p.currentWeek(now: now), 24);
+    expect(p.currentDayInWeek(now: now), 3);
+
+    // 4 天后应推进到 25w0d
+    final later = now.add(const Duration(days: 4));
+    expect(p.currentWeek(now: later), 25);
+    expect(p.currentDayInWeek(now: later), 0);
+  });
+
+  test('dayInWeek 越界自动 clamp 到 0-6', () {
+    final now = DateTime(2026, 4, 30);
+    final due =
+        FamilyProfile.dueDateFromCurrentWeek(24, dayInWeek: 99, now: now);
+    final p = FamilyProfile(dadName: 'a', momName: 'b', dueDate: due);
+    // 输入 99 应该 clamp 到 6，所以现在是 24w6d
+    expect(p.currentWeek(now: now), 24);
+    expect(p.currentDayInWeek(now: now), 6);
   });
 }

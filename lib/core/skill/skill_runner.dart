@@ -63,7 +63,8 @@ class SkillRunner {
       raw = await c.chatOnceJson(
         ctx.messages,
         temperature: temperatureOverride ?? ctx.skill.temperature,
-        needsVision: ctx.skill.needsVision,
+        // 自动升级：用户上图时一律走 vision，无论 skill frontmatter 怎么标。
+        needsVision: ctx.skill.needsVision || ctx.hasImage,
       );
     } on LlmException catch (e) {
       throw SkillRunError('LLM 调用失败: ${e.message}',
@@ -96,7 +97,8 @@ class SkillRunner {
       await for (final chunk in client.chat(
         ctx.messages,
         temperature: temperatureOverride ?? ctx.skill.temperature,
-        needsVision: ctx.skill.needsVision,
+        // 自动升级：用户上图时一律走 vision，无论 skill frontmatter 怎么标。
+        needsVision: ctx.skill.needsVision || ctx.hasImage,
       )) {
         if (chunk.deltaText.isNotEmpty) {
           buf.write(chunk.deltaText);
@@ -280,6 +282,8 @@ class _RunContext {
     this.inputText,
     this.imageBytes,
   });
+
+  bool get hasImage => imageBytes != null;
 }
 
 final skillRunnerProvider = Provider<SkillRunner?>((ref) {

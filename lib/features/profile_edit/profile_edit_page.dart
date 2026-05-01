@@ -22,6 +22,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
   final _dadCtl = TextEditingController();
   final _momCtl = TextEditingController();
   final _weekCtl = TextEditingController();
+  final _dayCtl = TextEditingController();
   bool _hydrated = false;
   bool _saving = false;
 
@@ -30,6 +31,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     _dadCtl.dispose();
     _momCtl.dispose();
     _weekCtl.dispose();
+    _dayCtl.dispose();
     super.dispose();
   }
 
@@ -39,6 +41,8 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     _momCtl.text = p.momName ?? '';
     final w = p.currentWeek();
     if (w != null) _weekCtl.text = w.toString();
+    final d = p.currentDayInWeek();
+    if (d != null && d > 0) _dayCtl.text = d.toString();
     _hydrated = true;
   }
 
@@ -46,10 +50,12 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
     final dad = _dadCtl.text.trim();
     final mom = _momCtl.text.trim();
     final week = int.tryParse(_weekCtl.text.trim());
+    final dayStr = _dayCtl.text.trim();
+    final day = dayStr.isEmpty ? 0 : (int.tryParse(dayStr) ?? -1);
 
     if (dad.isEmpty || mom.isEmpty || week == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('三项都得填好')),
+        const SnackBar(content: Text('称呼和周数都得填好')),
       );
       return;
     }
@@ -59,9 +65,16 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
       );
       return;
     }
+    if (day < 0 || day > 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('天数 0–6（不填默认 0）')),
+      );
+      return;
+    }
 
     setState(() => _saving = true);
-    final dueDate = FamilyProfile.dueDateFromCurrentWeek(week);
+    final dueDate =
+        FamilyProfile.dueDateFromCurrentWeek(week, dayInWeek: day);
     await ref.read(profileProvider.notifier).save(
           FamilyProfile(dadName: dad, momName: mom, dueDate: dueDate),
         );
@@ -119,17 +132,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
                 controller: _momCtl,
               ),
               const SizedBox(height: 14),
-              _Field(
-                label: '当前孕周',
-                hint: '比如 24',
-                emoji: '👶',
-                controller: _weekCtl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(2),
-                ],
-              ),
+              _WeekDayField(weekCtl: _weekCtl, dayCtl: _dayCtl),
               const SizedBox(height: 8),
               CreamCard(
                 flat: true,
@@ -140,7 +143,7 @@ class _ProfileEditPageState extends ConsumerState<ProfileEditPage> {
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '今天填多少周，明天就自动变成多少周。预产期由「今天 + (40-当前周)*7」算出来。',
+                      '今天填的周数 + 天数会用来反推 LMP（最末月经日），之后每天自动 +1 天。比如填 24w3d，明天就是 24w4d，4 天后是 25w0d。',
                       style: TextStyle(
                           fontFamily: 'Nunito',
                           fontWeight: FontWeight.w600,
@@ -171,16 +174,12 @@ class _Field extends StatelessWidget {
   final String hint;
   final String emoji;
   final TextEditingController controller;
-  final TextInputType? keyboardType;
-  final List<TextInputFormatter>? inputFormatters;
 
   const _Field({
     required this.label,
     required this.hint,
     required this.emoji,
     required this.controller,
-    this.keyboardType,
-    this.inputFormatters,
   });
 
   @override
@@ -203,9 +202,70 @@ class _Field extends StatelessWidget {
         const SizedBox(height: 8),
         TextField(
           controller: controller,
-          keyboardType: keyboardType,
-          inputFormatters: inputFormatters,
           decoration: InputDecoration(hintText: hint),
+        ),
+      ],
+    );
+  }
+}
+
+class _WeekDayField extends StatelessWidget {
+  final TextEditingController weekCtl;
+  final TextEditingController dayCtl;
+  const _WeekDayField({required this.weekCtl, required this.dayCtl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: const [
+          Sticker(
+              emoji: '👶',
+              size: 28,
+              background: AppColors.peach200),
+          SizedBox(width: 8),
+          Text('当前孕 X 周 Y 天',
+              style: TextStyle(
+                  fontFamily: 'Nunito',
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14)),
+        ]),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: TextField(
+                controller: weekCtl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(2),
+                ],
+                decoration: const InputDecoration(
+                  hintText: '24',
+                  suffixText: '周',
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 2,
+              child: TextField(
+                controller: dayCtl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(1),
+                ],
+                decoration: const InputDecoration(
+                  hintText: '0',
+                  suffixText: '天',
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

@@ -9,6 +9,7 @@ import '../../core/profile/profile.dart';
 import '../../core/profile/profile_repository.dart';
 import '../../core/skill/skill_runner.dart';
 import '../../core/storage/database.dart';
+import '../../core/storage/file_store.dart';
 
 enum ChatBubbleRole { user, assistant }
 
@@ -63,11 +64,13 @@ class ChatState {
 class ChatSessionController extends Notifier<ChatState> {
   late final AppDatabase _db;
   late final SkillRunner? _runner;
+  late final FileStore _files;
 
   @override
   ChatState build() {
     _db = ref.watch(appDatabaseProvider);
     _runner = ref.watch(skillRunnerProvider);
+    _files = ref.watch(fileStoreProvider);
     return const ChatState();
   }
 
@@ -98,8 +101,18 @@ class ChatSessionController extends Notifier<ChatState> {
               ),
             );
 
-    // 2. 写 user 气泡 + 落库
-    final userBubble = ChatBubble(role: ChatBubbleRole.user, text: input);
+    // 2. 如果带了图片，先存盘以便聊天气泡引用
+    String? userImagePath;
+    if (imageBytes != null) {
+      userImagePath = await _files.saveChatPhoto(imageBytes);
+    }
+
+    // 3. 写 user 气泡 + 落库
+    final userBubble = ChatBubble(
+      role: ChatBubbleRole.user,
+      text: input,
+      imagePath: userImagePath,
+    );
     final assistantBubble = const ChatBubble(
       role: ChatBubbleRole.assistant,
       text: '',
@@ -116,6 +129,9 @@ class ChatSessionController extends Notifier<ChatState> {
             sessionId: sessionId,
             role: 'user',
             content: input,
+            imagePath: userImagePath == null
+                ? const Value.absent()
+                : Value(userImagePath),
           ),
         );
 

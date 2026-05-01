@@ -20,6 +20,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   final _dadCtl = TextEditingController();
   final _momCtl = TextEditingController();
   final _weekCtl = TextEditingController();
+  final _dayCtl = TextEditingController();
   bool _saving = false;
   bool _hydrated = false;
 
@@ -28,6 +29,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     _dadCtl.dispose();
     _momCtl.dispose();
     _weekCtl.dispose();
+    _dayCtl.dispose();
     super.dispose();
   }
 
@@ -37,6 +39,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     _momCtl.text = p.momName ?? '';
     final w = p.currentWeek();
     if (w != null) _weekCtl.text = w.toString();
+    final d = p.currentDayInWeek();
+    if (d != null && d > 0) _dayCtl.text = d.toString();
     _hydrated = true;
   }
 
@@ -45,10 +49,12 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     final mom = _momCtl.text.trim();
     final weekStr = _weekCtl.text.trim();
     final week = int.tryParse(weekStr);
+    final dayStr = _dayCtl.text.trim();
+    final day = dayStr.isEmpty ? 0 : (int.tryParse(dayStr) ?? -1);
 
     if (dad.isEmpty || mom.isEmpty || week == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('三项都得填好')),
+        const SnackBar(content: Text('称呼和周数都得填好')),
       );
       return;
     }
@@ -58,9 +64,16 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
       );
       return;
     }
+    if (day < 0 || day > 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('天数 0–6（不填默认 0）')),
+      );
+      return;
+    }
 
     setState(() => _saving = true);
-    final dueDate = FamilyProfile.dueDateFromCurrentWeek(week);
+    final dueDate =
+        FamilyProfile.dueDateFromCurrentWeek(week, dayInWeek: day);
     await ref.read(profileProvider.notifier).save(
           FamilyProfile(dadName: dad, momName: mom, dueDate: dueDate),
         );
@@ -126,16 +139,9 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                   controller: _momCtl,
                 ),
                 const SizedBox(height: 14),
-                _Field(
-                  label: '宝宝现在第几周',
-                  hint: '直接填数字，比如 24',
-                  emoji: '👶',
-                  controller: _weekCtl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(2),
-                  ],
+                _WeekDayField(
+                  weekCtl: _weekCtl,
+                  dayCtl: _dayCtl,
                 ),
                 const SizedBox(height: 8),
                 CreamCard(
@@ -194,16 +200,12 @@ class _Field extends StatelessWidget {
   final String hint;
   final String emoji;
   final TextEditingController controller;
-  final TextInputType? keyboardType;
-  final List<TextInputFormatter>? inputFormatters;
 
   const _Field({
     required this.label,
     required this.hint,
     required this.emoji,
     required this.controller,
-    this.keyboardType,
-    this.inputFormatters,
   });
 
   @override
@@ -226,9 +228,71 @@ class _Field extends StatelessWidget {
         const SizedBox(height: 8),
         TextField(
           controller: controller,
-          keyboardType: keyboardType,
-          inputFormatters: inputFormatters,
           decoration: InputDecoration(hintText: hint),
+        ),
+      ],
+    );
+  }
+}
+
+/// 「孕周 + 天」并排输入。天为可选 0-6（不填默认 0）。
+class _WeekDayField extends StatelessWidget {
+  final TextEditingController weekCtl;
+  final TextEditingController dayCtl;
+  const _WeekDayField({required this.weekCtl, required this.dayCtl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: const [
+          Sticker(
+              emoji: '👶',
+              size: 28,
+              background: AppColors.peach200),
+          SizedBox(width: 8),
+          Text('宝宝现在 X 周 Y 天',
+              style: TextStyle(
+                  fontFamily: 'Nunito',
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14)),
+        ]),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: TextField(
+                controller: weekCtl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(2),
+                ],
+                decoration: const InputDecoration(
+                  hintText: '24',
+                  suffixText: '周',
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 2,
+              child: TextField(
+                controller: dayCtl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(1),
+                ],
+                decoration: const InputDecoration(
+                  hintText: '0',
+                  suffixText: '天',
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

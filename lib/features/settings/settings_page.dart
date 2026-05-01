@@ -6,9 +6,12 @@ import '../../core/config/llm_config.dart';
 import '../../core/config/llm_config_provider.dart';
 import '../../core/llm/llm_providers.dart';
 import '../../core/llm/openai_compatible_client.dart';
+import '../../core/backup/backup_service.dart';
 import '../../core/llm/types.dart';
 import '../../core/memory/memory_repository.dart';
 import '../../core/notification/weekly_notifier.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:share_plus/share_plus.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -366,9 +369,129 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.push('/skills'),
               ),
+              const SizedBox(height: 24),
+              const _SectionTitle('备份与恢复'),
+              const SizedBox(height: 8),
+              const _BackupHelp(),
+              ListTile(
+                leading: const Icon(Icons.archive_outlined),
+                title: const Text('导出备份'),
+                subtitle: const Text('打成 .zip · 含数据库 + 照片 + 自定义 skill'),
+                trailing: const Icon(Icons.share_outlined),
+                onTap: () => _exportBackup(context, ref),
+              ),
+              ListTile(
+                leading: const Icon(Icons.unarchive_outlined),
+                title: const Text('从备份恢复'),
+                subtitle: const Text('选一个 .zip · 会覆盖当前数据'),
+                trailing: const Icon(Icons.upload_file_outlined),
+                onTap: () => _importBackup(context, ref),
+              ),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Future<void> _exportBackup(
+      BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('正在打包…')),
+    );
+    try {
+      final svc = ref.read(backupServiceProvider);
+      final summary = await svc.exportToZip();
+      if (!context.mounted) return;
+      messenger.hideCurrentSnackBar();
+
+      await Share.shareXFiles(
+        [XFile(summary.filePath)],
+        text:
+            'good-dad 备份 · ${summary.photoCount} 张照片 · ${summary.skillCount} 个自定义 skill · ${summary.sizeLabel}',
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('导出失败: $e')));
+    }
+  }
+
+  Future<void> _importBackup(
+      BuildContext context, WidgetRef ref) async {
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['zip'],
+    );
+    if (picked == null || picked.files.isEmpty) return;
+    final path = picked.files.first.path;
+    if (path == null) return;
+    if (!context.mounted) return;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('确认恢复'),
+        content: const Text(
+            '这会**覆盖**当前所有数据（聊天 / 食物识别历史 / 待办 / 周建议 / 记忆 / 照片）。LLM key 不会受影响（备份里没有）。'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('继续恢复')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    if (!context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(content: Text('正在恢复…')));
+    try {
+      final svc = ref.read(backupServiceProvider);
+      final result = await svc.importFromZip(path);
+      if (!context.mounted) return;
+      messenger.hideCurrentSnackBar();
+      if (!result.ok) {
+        messenger.showSnackBar(
+            SnackBar(content: Text('恢复失败: ${result.error ?? "?"}')));
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('恢复完成 ✅'),
+          content: Text(
+              '已写入：\n· 数据库：${result.restoredDb ? "是" : "否"}\n· 照片：${result.restoredPhotos} 张\n· 自定义 skill：${result.restoredSkills} 个\n\n请**手动重启 App** 让新数据生效。'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('知道了')),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('恢复异常: $e')));
+    }
+  }
+}
+
+class _BackupHelp extends StatelessWidget {
+  const _BackupHelp();
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      child: Text(
+        '卸载重装会丢全部本地数据。建议每隔几周「导出备份」存到微信/iCloud/Google Drive。\n（Android 默认会自动备份到 Google Drive，但 LLM key 因加密保护不会一起还原；iOS 必须手动导出。）',
+        style: TextStyle(
+            fontSize: 11.5,
+            height: 1.6,
+            color:
+                Theme.of(context).colorScheme.onSurfaceVariant),
       ),
     );
   }

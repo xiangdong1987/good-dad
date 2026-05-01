@@ -41,11 +41,23 @@ class FamilyProfile {
     return (40 - w).clamp(0, 40);
   }
 
-  /// 由「当前孕周」反推 dueDate（用户输入孕周时用）。
-  static DateTime dueDateFromCurrentWeek(int week, {DateTime? now}) {
+  /// 由「当前 X 周 Y 天」反推 dueDate。
+  ///
+  /// 推算路径：
+  /// - LMP = today - (week*7 + dayInWeek)
+  /// - dueDate = LMP + 280 天
+  ///
+  /// 这样无论用户填的是「24 周」还是「24 周 3 天」，
+  /// 后续 [currentWeek] / [currentDayInWeek] 都能精确每天推进。
+  static DateTime dueDateFromCurrentWeek(
+    int week, {
+    int dayInWeek = 0,
+    DateTime? now,
+  }) {
     final today = now ?? DateTime.now();
-    // 把 today 视为孕第 `week` 周第 0 天，预产期 = today + (40-week)*7
-    final remainingDays = (40 - week) * 7;
-    return today.add(Duration(days: remainingDays));
+    final clampedDay = dayInWeek.clamp(0, 6);
+    final daysSinceLmp = week * 7 + clampedDay;
+    final lmp = today.subtract(Duration(days: daysSinceLmp));
+    return lmp.add(const Duration(days: 280));
   }
 }
