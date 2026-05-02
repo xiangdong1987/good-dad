@@ -4,8 +4,16 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/**'
   workflow_dispatch: {} # 仓库 → Actions → 手动按钮
 
 env:
