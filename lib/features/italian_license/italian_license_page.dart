@@ -5,12 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/memory/memory_repository.dart';
 import '../../core/profile/profile.dart';
 import '../../core/profile/profile_repository.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets/cream_widgets.dart';
 import 'italian_license_models.dart';
 import 'italian_license_runner.dart';
+import 'italian_license_vocab.dart';
 
 class ItalianLicensePage extends ConsumerStatefulWidget {
   const ItalianLicensePage({super.key});
@@ -26,6 +28,85 @@ class _ItalianLicensePageState extends ConsumerState<ItalianLicensePage> {
   ItalianLicenseRun? _result;
   String? _error;
   bool _running = false;
+
+  /// 已经收藏到「单词表」的词条 name（形如 `vocab.it.foo`）。
+  /// 进页面 + 每次出新结果时刷新一次；点收藏立即乐观更新。
+  Set<String> _savedSlugs = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshSavedSlugs();
+  }
+
+  Future<void> _refreshSavedSlugs() async {
+    final repo = ref.read(memoryRepositoryProvider);
+    final rows =
+        await repo.findActiveLikeNames([ItalianLicenseVocab.namePattern]);
+    if (!mounted) return;
+    setState(() {
+      _savedSlugs = rows.map((e) => e.name).toSet();
+    });
+  }
+
+  Future<void> _saveVocab(LicenseVocab v) async {
+    final entry = ItalianLicenseVocab.toEntry(v);
+    if (_savedSlugs.contains(entry.name)) {
+      _toast('已经在单词表里了');
+      return;
+    }
+    setState(() => _savedSlugs = {..._savedSlugs, entry.name});
+    try {
+      await ref.read(memoryRepositoryProvider).upsert(entry);
+      if (!mounted) return;
+      _toast('已加入单词表 ✓');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _savedSlugs = _savedSlugs.where((s) => s != entry.name).toSet();
+      });
+      _toast('保存失败：$e');
+    }
+  }
+
+  Future<void> _saveAllVocab(List<LicenseVocab> all) async {
+    final repo = ref.read(memoryRepositoryProvider);
+    final newOnes = all
+        .where((v) => !_savedSlugs.contains(ItalianLicenseVocab.slugFor(v)))
+        .toList();
+    if (newOnes.isEmpty) {
+      _toast('全部已经在单词表里了');
+      return;
+    }
+    final newSlugs =
+        newOnes.map(ItalianLicenseVocab.slugFor).toSet();
+    setState(() => _savedSlugs = {..._savedSlugs, ...newSlugs});
+    try {
+      for (final v in newOnes) {
+        await repo.upsert(ItalianLicenseVocab.toEntry(v));
+      }
+      if (!mounted) return;
+      _toast('已加入 ${newOnes.length} 个新词 ✓');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _savedSlugs = _savedSlugs.difference(newSlugs);
+      });
+      _toast('保存失败：$e');
+    }
+  }
+
+  void _toast(String msg) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.clearSnackBars();
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   Future<void> _pick(ImageSource source) async {
     if (_running) return;
@@ -72,6 +153,7 @@ class _ItalianLicensePageState extends ConsumerState<ItalianLicensePage> {
         _result = run;
         _running = false;
       });
+      _refreshSavedSlugs();
     } on ItalianLicenseError catch (e) {
       if (!mounted) return;
       setState(() {
@@ -120,6 +202,9 @@ class _ItalianLicensePageState extends ConsumerState<ItalianLicensePage> {
             _ResultCard(
               run: _result!,
               previewBytes: _previewBytes,
+              savedSlugs: _savedSlugs,
+              onSaveVocab: _saveVocab,
+              onSaveAllVocab: _saveAllVocab,
               onAgain: () {
                 setState(() {
                   _result = null;
@@ -268,10 +353,16 @@ class _PreviewCard extends StatelessWidget {
 class _ResultCard extends StatelessWidget {
   final ItalianLicenseRun run;
   final Uint8List? previewBytes;
+  final Set<String> savedSlugs;
+  final Future<void> Function(LicenseVocab) onSaveVocab;
+  final Future<void> Function(List<LicenseVocab>) onSaveAllVocab;
   final VoidCallback onAgain;
   const _ResultCard({
     required this.run,
     required this.previewBytes,
+    required this.savedSlugs,
+    required this.onSaveVocab,
+    required this.onSaveAllVocab,
     required this.onAgain,
   });
 
@@ -344,9 +435,22 @@ class _ResultCard extends StatelessWidget {
 
           if (r.vocabulary.isNotEmpty) ...[
             const SizedBox(height: 14),
-            _SectionLabel('关键词汇'),
+            Row(
+              children: [
+                Expanded(child: _SectionLabel('关键词汇 · 点 🔖 加单词表')),
+                _SaveAllChip(
+                  vocab: r.vocabulary,
+                  savedSlugs: savedSlugs,
+                  onTap: () => onSaveAllVocab(r.vocabulary),
+                ),
+              ],
+            ),
             const SizedBox(height: 6),
-            ...r.vocabulary.map((v) => _VocabRow(v: v)),
+            ...r.vocabulary.map((v) => _VocabRow(
+                  v: v,
+                  saved: savedSlugs.contains(ItalianLicenseVocab.slugFor(v)),
+                  onSave: () => onSaveVocab(v),
+                )),
           ],
 
           if (r.grammarNotes.isNotEmpty) ...[
@@ -548,48 +652,139 @@ class _AnswerBadge extends StatelessWidget {
 
 class _VocabRow extends StatelessWidget {
   final LicenseVocab v;
-  const _VocabRow({required this.v});
+  final bool saved;
+  final VoidCallback onSave;
+  const _VocabRow({
+    required this.v,
+    required this.saved,
+    required this.onSave,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 5,
-            child: Text(v.it,
-                style: const TextStyle(
-                    fontFamily: 'Nunito',
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                    color: AppColors.peach700)),
-          ),
-          Expanded(
-            flex: 7,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(v.zh,
-                    style: const TextStyle(
-                        fontFamily: 'Nunito',
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                        color: AppColors.ink900,
-                        height: 1.35)),
-                if (v.note.isNotEmpty)
-                  Text(v.note,
+    return InkWell(
+      onTap: saved ? null : onSave,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 5,
+              child: Text(v.it,
+                  style: const TextStyle(
+                      fontFamily: 'Nunito',
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      color: AppColors.peach700)),
+            ),
+            Expanded(
+              flex: 7,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(v.zh,
                       style: const TextStyle(
                           fontFamily: 'Nunito',
-                          fontWeight: FontWeight.w600,
-                          fontSize: 10,
-                          color: AppColors.ink400,
-                          height: 1.4)),
-              ],
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                          color: AppColors.ink900,
+                          height: 1.35)),
+                  if (v.note.isNotEmpty)
+                    Text(v.note,
+                        style: const TextStyle(
+                            fontFamily: 'Nunito',
+                            fontWeight: FontWeight.w600,
+                            fontSize: 10,
+                            color: AppColors.ink400,
+                            height: 1.4)),
+                ],
+              ),
             ),
+            const SizedBox(width: 6),
+            _BookmarkButton(saved: saved, onPressed: onSave),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BookmarkButton extends StatelessWidget {
+  final bool saved;
+  final VoidCallback onPressed;
+  const _BookmarkButton({required this.saved, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkResponse(
+      onTap: saved ? null : onPressed,
+      radius: 18,
+      child: Container(
+        width: 30,
+        height: 30,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: saved ? AppColors.mint500 : AppColors.cream200,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: saved ? AppColors.mint700 : AppColors.cream300,
+            width: 1.5,
           ),
-        ],
+        ),
+        child: Text(
+          saved ? '✓' : '🔖',
+          style: TextStyle(
+              fontSize: saved ? 14 : 13,
+              fontWeight: FontWeight.w900,
+              color: saved ? Colors.white : null),
+        ),
+      ),
+    );
+  }
+}
+
+class _SaveAllChip extends StatelessWidget {
+  final List<LicenseVocab> vocab;
+  final Set<String> savedSlugs;
+  final VoidCallback onTap;
+  const _SaveAllChip({
+    required this.vocab,
+    required this.savedSlugs,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final unsavedCount = vocab
+        .where((v) =>
+            !savedSlugs.contains(ItalianLicenseVocab.slugFor(v)))
+        .length;
+    final allSaved = unsavedCount == 0;
+    return InkWell(
+      onTap: allSaved ? null : onTap,
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: allSaved
+              ? AppColors.cream200
+              : AppColors.peach500.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(
+            color: allSaved ? AppColors.cream300 : AppColors.peach500,
+            width: 1.2,
+          ),
+        ),
+        child: Text(
+          allSaved ? '已全部收藏' : '全部加 ($unsavedCount)',
+          style: TextStyle(
+              fontFamily: 'Nunito',
+              fontWeight: FontWeight.w800,
+              fontSize: 11,
+              color: allSaved ? AppColors.ink400 : AppColors.peach700),
+        ),
       ),
     );
   }
