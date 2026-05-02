@@ -8,6 +8,7 @@ import 'features/chat/chat_page.dart';
 import 'features/checklist/checklist_page.dart';
 import 'features/food_safety/food_safety_page.dart';
 import 'features/home/home_page.dart';
+import 'features/italian_license/italian_license_page.dart';
 import 'features/memory/memory_list_page.dart';
 import 'features/pregnancy/pregnancy_week_page.dart';
 import 'features/pregnancy_recipe/recipe_page.dart';
@@ -82,6 +83,11 @@ final appRouter = GoRouter(
       path: '/shopping',
       name: 'shopping',
       builder: (context, state) => const ShoppingPage(),
+    ),
+    GoRoute(
+      path: '/italian-license',
+      name: 'italian-license',
+      builder: (context, state) => const ItalianLicensePage(),
     ),
   ],
   errorBuilder: (context, state) => Scaffold(

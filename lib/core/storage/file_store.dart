@@ -50,6 +50,14 @@ class FileStore {
     return file.path;
   }
 
+  Future<String> saveLicensePhoto(Uint8List bytes,
+      {String extension = 'jpg'}) async {
+    final dir = await _ensure(p.join('photos', 'license'));
+    final file = File(p.join(dir.path, '${_uuid.v4()}.$extension'));
+    await file.writeAsBytes(bytes, flush: true);
+    return file.path;
+  }
+
   Future<Directory> userSkillsDir() => _ensure('skills');
 }
 
