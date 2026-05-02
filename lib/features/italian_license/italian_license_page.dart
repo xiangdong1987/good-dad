@@ -10,6 +10,7 @@ import '../../core/profile/profile.dart';
 import '../../core/profile/profile_repository.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets/cream_widgets.dart';
+import '../italian_vocab/italian_vocab_page.dart';
 import 'italian_license_models.dart';
 import 'italian_license_runner.dart';
 import 'italian_license_vocab.dart';
@@ -174,12 +175,44 @@ class _ItalianLicensePageState extends ConsumerState<ItalianLicensePage> {
     final hasResult = _result != null;
     final hasPreview = _previewBytes != null;
 
+    final savedCount = ref
+            .watch(savedItalianVocabProvider)
+            .valueOrNull
+            ?.length ??
+        0;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.chevron_left_rounded, size: 28),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: TextButton(
+              onPressed: () => context.push('/italian-vocab'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.peach700,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('📚', style: TextStyle(fontSize: 16)),
+                  const SizedBox(width: 4),
+                  Text(
+                    savedCount == 0 ? '单词表' : '单词 ($savedCount)',
+                    style: const TextStyle(
+                        fontFamily: 'Nunito',
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
