@@ -197,6 +197,27 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (b.role == ChatBubbleRole.system) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.mint300,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: AppColors.ink900, width: 1.5),
+            ),
+            child: Text(b.text,
+                style: const TextStyle(
+                    fontFamily: 'Nunito',
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    color: AppColors.mint700)),
+          ),
+        ),
+      );
+    }
     final isUser = b.role == ChatBubbleRole.user;
     final align =
         isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;

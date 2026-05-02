@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../i18n/app_locale.dart';
+import '../i18n/locale_provider.dart';
 import '../llm/llm_client.dart';
 import '../llm/llm_providers.dart';
 import '../llm/openai_compatible_client.dart';
@@ -34,12 +36,14 @@ class SkillRunner {
   final SkillLoader skillLoader;
   final AppDatabase db;
   final MemoryInjector memoryInjector;
+  final AppLocale locale;
 
   SkillRunner({
     required this.client,
     required this.skillLoader,
     required this.db,
     required this.memoryInjector,
+    this.locale = AppLocale.zhCN,
   });
 
   Future<SkillRunResult> run(
@@ -197,7 +201,11 @@ class SkillRunner {
     Uint8List? imageBytes,
     String? memoryBlock,
   ) {
-    final ctxLines = <String>['## 家庭信息（请基于此回答）'];
+    final now = DateTime.now();
+    final ctxLines = <String>[
+      '## 家庭信息（请基于此回答）',
+      '- 今天：${_isoDate(now)}（${_zhWeekday(now.weekday)}）',
+    ];
     if (profile != null) {
       if (profile.dadName != null) {
         ctxLines.add('- 爸爸（用户）希望被叫：${profile.dadName}');
@@ -206,8 +214,13 @@ class SkillRunner {
         ctxLines.add('- 妈妈希望被叫：${profile.momName}');
       }
       if (profile.currentWeek() != null) {
-        ctxLines
-            .add('- 当前孕周：${profile.currentWeek()} 周（共 40 周）');
+        final w = profile.currentWeek();
+        final d = profile.currentDayInWeek() ?? 0;
+        ctxLines.add(
+            '- 当前孕周：$w 周 $d 天（共 40 周）');
+        if (profile.dueDate != null) {
+          ctxLines.add('- 预产期：${_isoDate(profile.dueDate!)}');
+        }
       }
     }
 
@@ -216,6 +229,14 @@ class SkillRunner {
       parts
         ..add('')
         ..add(memoryBlock);
+    }
+
+    // 语言：让 AI 用用户选定的语言回复（结构化字段值除外，比如 verdict=safe 仍是英文枚举）
+    if (locale != AppLocale.zhCN) {
+      parts
+        ..add('')
+        ..add('## 语言\n请用 ${locale.aiLanguageHint} 回复用户。'
+            '保留 JSON 字段名 / 枚举值（safe/avoid/caution/todo/checkup 等）不翻译。');
     }
 
     if (skill.outputFormat == 'structured') {
@@ -251,6 +272,14 @@ class SkillRunner {
     }
 
     return messages;
+  }
+
+  static String _isoDate(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  static String _zhWeekday(int w) {
+    const map = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    return map[(w - 1).clamp(0, 6)];
   }
 
   String _defaultUserPrompt(Skill skill) {
@@ -294,5 +323,6 @@ final skillRunnerProvider = Provider<SkillRunner?>((ref) {
     skillLoader: ref.watch(skillLoaderProvider),
     db: ref.watch(appDatabaseProvider),
     memoryInjector: ref.watch(memoryInjectorProvider),
+    locale: ref.watch(localeProvider).valueOrNull ?? AppLocale.zhCN,
   );
 });

@@ -60,34 +60,43 @@ class _HomeContent extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
       children: [
-        // 顶部问候
-        Row(
-          children: [
-            const Sticker(
-                emoji: '🐻',
-                background: AppColors.lemon300,
-                tilt: -4,
-                size: 44),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('嘿，${profile.dadName ?? "爸爸"}',
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelSmall
-                          ?.copyWith(color: AppColors.ink600)),
-                  Text(weekText,
-                      style: Theme.of(context).textTheme.titleMedium),
-                ],
-              ),
+        // 顶部问候 — 点 🐻 / 名字 / 孕周徽 都进设置
+        InkWell(
+          onTap: () => context.push('/settings'),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                const Sticker(
+                    emoji: '🐻',
+                    background: AppColors.lemon300,
+                    tilt: -4,
+                    size: 44),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('嘿，${profile.dadName ?? "爸爸"}',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelSmall
+                              ?.copyWith(color: AppColors.ink600)),
+                      Text(weekText,
+                          style:
+                              Theme.of(context).textTheme.titleMedium),
+                    ],
+                  ),
+                ),
+                Icon(Icons.settings_outlined,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant),
+                const SizedBox(width: 4),
+              ],
             ),
-            IconButton(
-              icon: const Icon(Icons.settings_outlined),
-              onPressed: () => context.push('/settings'),
-            ),
-          ],
+          ),
         ),
         const SizedBox(height: 18),
 

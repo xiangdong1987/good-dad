@@ -7,6 +7,8 @@ import '../../core/config/llm_config_provider.dart';
 import '../../core/llm/llm_providers.dart';
 import '../../core/llm/openai_compatible_client.dart';
 import '../../core/backup/backup_service.dart';
+import '../../core/i18n/app_locale.dart';
+import '../../core/i18n/locale_provider.dart';
 import '../../core/llm/types.dart';
 import '../../core/memory/memory_repository.dart';
 import '../../core/notification/weekly_notifier.dart';
@@ -369,6 +371,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.push('/skills'),
               ),
+              Consumer(builder: (ctx, ref, _) {
+                final loc = ref.watch(localeProvider).valueOrNull ??
+                    AppLocale.zhCN;
+                final l10n = ref.watch(l10nProvider);
+                return ListTile(
+                  leading: const Icon(Icons.translate_outlined),
+                  title: Text(l10n.t('settings.entry_language')),
+                  subtitle: Text(loc.label),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _pickLanguage(context, ref, loc),
+                );
+              }),
               const SizedBox(height: 24),
               const _SectionTitle('备份与恢复'),
               const SizedBox(height: 8),
@@ -392,6 +406,48 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         },
       ),
     );
+  }
+
+  Future<void> _pickLanguage(
+      BuildContext context, WidgetRef ref, AppLocale current) async {
+    final l10n = ref.read(l10nProvider);
+    final picked = await showDialog<AppLocale>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(l10n.t('settings.language_dialog_title')),
+        children: [
+          RadioGroup<AppLocale>(
+            groupValue: current,
+            onChanged: (v) => Navigator.pop(ctx, v),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final loc in AppLocale.values)
+                  RadioListTile<AppLocale>(
+                    value: loc,
+                    title: Text(loc.label),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: Text(
+              l10n.t('settings.language_note'),
+              style: TextStyle(
+                fontSize: 11,
+                height: 1.55,
+                color:
+                    Theme.of(ctx).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (picked != null && picked != current) {
+      await ref.read(localeProvider.notifier).set(picked);
+    }
   }
 
   Future<void> _exportBackup(

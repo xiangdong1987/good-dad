@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/calendar/daily_task.dart';
+import '../../core/calendar/schedule_extractor.dart';
 import '../../core/memory/memory_extractor.dart';
 import '../../core/profile/profile.dart';
 import '../../core/profile/profile_repository.dart';
@@ -11,7 +13,7 @@ import '../../core/skill/skill_runner.dart';
 import '../../core/storage/database.dart';
 import '../../core/storage/file_store.dart';
 
-enum ChatBubbleRole { user, assistant }
+enum ChatBubbleRole { user, assistant, system }
 
 class ChatBubble {
   final ChatBubbleRole role;
@@ -62,9 +64,11 @@ class ChatState {
 }
 
 class ChatSessionController extends Notifier<ChatState> {
-  late final AppDatabase _db;
-  late final SkillRunner? _runner;
-  late final FileStore _files;
+  // 注意：Riverpod 的 build() 会因为 watch 的依赖变化（如 profile / locale）重新执行，
+  // 所以这里必须用普通字段（每次重写赋值），不能 late final。
+  late AppDatabase _db;
+  late SkillRunner? _runner;
+  late FileStore _files;
 
   @override
   ChatState build() {
@@ -175,6 +179,22 @@ class ChatSessionController extends Notifier<ChatState> {
           assistantMessage: result.rawText,
         ));
       }
+
+      // 同步抽日程（很轻：纯本地解析，不调 LLM）
+      final added = await ref
+          .read(scheduleExtractorProvider)
+          .extractAndPersist(result.rawText);
+      if (added.isNotEmpty) {
+        final summary = added.map(_summary).join(' · ');
+        final updated = [
+          ...state.bubbles,
+          ChatBubble(
+            role: ChatBubbleRole.system,
+            text: '✅ 已加日历 · $summary',
+          ),
+        ];
+        state = state.copyWith(bubbles: updated);
+      }
     } on SkillRunError catch (e) {
       _markStreamFailure(assistantIndex, '出错了：${e.message}');
     } catch (e) {
@@ -196,6 +216,12 @@ class ChatSessionController extends Notifier<ChatState> {
   static String _firstLine(String text, {int max = 24}) {
     final l = text.split(RegExp(r'\r?\n')).first;
     return l.length <= max ? l : '${l.substring(0, max)}…';
+  }
+
+  static String _summary(DailyTask t) {
+    final m = t.forDate.month.toString().padLeft(2, '0');
+    final d = t.forDate.day.toString().padLeft(2, '0');
+    return '$m/$d ${t.title}';
   }
 }
 
