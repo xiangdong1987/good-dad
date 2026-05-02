@@ -1,4 +1,4 @@
-package com.siyou.good_dad
+package com.xdd.good.dad
 
 import io.flutter.embedding.android.FlutterActivity
 

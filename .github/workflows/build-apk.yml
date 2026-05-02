@@ -1,0 +1,142 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {} # 仓库 → Actions → 手动按钮
+
+env:
+  FLUTTER_VERSION: '3.41.5'
+  JAVA_VERSION: '17'
+
+jobs:
+  # ── 1. 验证 + debug APK（每次 push / PR / 手动都跑） ─────────────
+  debug:
+    name: analyze + test + debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: pub get
+        run: flutter pub get
+
+      - name: build_runner
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: analyze
+        run: flutter analyze
+
+      - name: test
+        run: flutter test
+
+      - name: build debug APK
+        run: flutter build apk --debug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 30
+
+  # ── 2. tag 推送时跑 release：签名 → APK + AAB → GitHub Release ──
+  release:
+    name: signed release + GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: debug
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write # 创建 Release 需要
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: pub get
+        run: flutter pub get
+
+      - name: build_runner
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # ── 把 secrets 解码成 keystore 文件 ──
+      - name: Decode keystore
+        if: ${{ env.KEYSTORE_BASE64 != '' }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/upload-keystore.jks
+          ls -la android/upload-keystore.jks
+
+      - name: Write key.properties
+        if: ${{ env.KEYSTORE_BASE64 != '' }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          cat > android/key.properties <<EOF
+          storeFile=../upload-keystore.jks
+          storePassword=${STORE_PASSWORD}
+          keyAlias=${KEY_ALIAS:-upload}
+          keyPassword=${KEY_PASSWORD}
+          EOF
+
+      - name: build release APK
+        run: flutter build apk --release
+
+      - name: build release AAB
+        run: flutter build appbundle --release
+
+      - name: rename artifacts with tag
+        id: rename
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          mv build/app/outputs/flutter-apk/app-release.apk \
+             "build/app/outputs/flutter-apk/good-dad-${TAG}.apk"
+          mv build/app/outputs/bundle/release/app-release.aab \
+             "build/app/outputs/bundle/release/good-dad-${TAG}.aab"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.rename.outputs.tag }}
+          name: good-dad ${{ steps.rename.outputs.tag }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          files: |
+            build/app/outputs/flutter-apk/good-dad-${{ steps.rename.outputs.tag }}.apk
+            build/app/outputs/bundle/release/good-dad-${{ steps.rename.outputs.tag }}.aab
+          body: |
+            🐻 自动从 tag `${{ github.ref_name }}` 构建。
+
+            **APK** —— Android 直接侧载
+            **AAB** —— 上传 Google Play Console 内测/正式发布
+
+            > 首次使用需到「设置 → LLM 服务」填好 baseURL + API key + 模型 ID。
+            > 详见 [README](https://github.com/${{ github.repository }}#readme)。
