@@ -14,6 +14,8 @@ import '../italian_vocab/italian_vocab_page.dart';
 import 'italian_license_models.dart';
 import 'italian_license_runner.dart';
 import 'italian_license_vocab.dart';
+import 'italian_lookup_models.dart';
+import 'italian_lookup_runner.dart';
 
 class ItalianLicensePage extends ConsumerStatefulWidget {
   const ItalianLicensePage({super.key});
@@ -33,6 +35,18 @@ class _ItalianLicensePageState extends ConsumerState<ItalianLicensePage> {
   /// 已经收藏到「单词表」的词条 name（形如 `vocab.it.foo`）。
   /// 进页面 + 每次出新结果时刷新一次；点收藏立即乐观更新。
   Set<String> _savedSlugs = const {};
+
+  // ── 查词 ─────────────────────────────────────────────────
+  final _lookupCtl = TextEditingController();
+  LookupResult? _lookup;
+  String? _lookupError;
+  bool _lookupRunning = false;
+
+  @override
+  void dispose() {
+    _lookupCtl.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -107,6 +121,49 @@ class _ItalianLicensePageState extends ConsumerState<ItalianLicensePage> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  Future<void> _runLookup() async {
+    final q = _lookupCtl.text.trim();
+    if (q.isEmpty || _lookupRunning) return;
+    final runner = ref.read(italianLookupRunnerProvider);
+    if (runner == null) {
+      setState(() => _lookupError = '请先到「设置」填好 baseURL + key + 模型');
+      return;
+    }
+    final profile =
+        ref.read(profileProvider).valueOrNull ?? FamilyProfile.empty;
+
+    setState(() {
+      _lookupRunning = true;
+      _lookupError = null;
+      _lookup = null;
+    });
+    try {
+      final result =
+          await runner.run(query: q, profile: profile);
+      if (!mounted) return;
+      setState(() {
+        _lookup = result;
+        _lookupRunning = false;
+      });
+    } on ItalianLookupError catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _lookupError = e.message;
+        _lookupRunning = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _lookupError = '出错了: $e';
+        _lookupRunning = false;
+      });
+    }
+  }
+
+  Future<void> _saveLookup(LookupResult r) async {
+    await _saveVocab(r.toVocab());
   }
 
   Future<void> _pick(ImageSource source) async {
@@ -227,6 +284,30 @@ class _ItalianLicensePageState extends ConsumerState<ItalianLicensePage> {
                   fontSize: 13,
                   color: AppColors.ink600)),
           const SizedBox(height: 16),
+
+          _LookupBar(
+            controller: _lookupCtl,
+            running: _lookupRunning,
+            onSubmit: _runLookup,
+          ),
+          if (_lookupError != null) ...[
+            const SizedBox(height: 8),
+            _InlineError(message: _lookupError!),
+          ],
+          if (_lookup != null) ...[
+            const SizedBox(height: 12),
+            _LookupResultCard(
+              result: _lookup!,
+              saved: _savedSlugs.contains(
+                  ItalianLicenseVocab.slugFor(_lookup!.toVocab())),
+              onSave: () => _saveLookup(_lookup!),
+              onClose: () => setState(() {
+                _lookup = null;
+                _lookupCtl.clear();
+              }),
+            ),
+          ],
+          const SizedBox(height: 18),
 
           if (!hasPreview && !hasResult) const _IdlePlaceholder(),
           if (hasPreview && !hasResult)
@@ -819,6 +900,294 @@ class _SaveAllChip extends StatelessWidget {
               color: allSaved ? AppColors.ink400 : AppColors.peach700),
         ),
       ),
+    );
+  }
+}
+
+// ───────────────────────────────────────────────────────────
+// 查词
+// ───────────────────────────────────────────────────────────
+
+class _LookupBar extends StatelessWidget {
+  final TextEditingController controller;
+  final bool running;
+  final VoidCallback onSubmit;
+  const _LookupBar({
+    required this.controller,
+    required this.running,
+    required this.onSubmit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cream100,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.cream300, width: 1.5),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 4, 6, 4),
+      child: Row(
+        children: [
+          const Text('🔍', style: TextStyle(fontSize: 16)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              enabled: !running,
+              decoration: const InputDecoration(
+                hintText: '查词：意大利语 / 中文',
+                hintStyle: TextStyle(
+                    fontFamily: 'Nunito',
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.ink400),
+                border: InputBorder.none,
+                isCollapsed: true,
+                contentPadding: EdgeInsets.symmetric(vertical: 14),
+              ),
+              style: const TextStyle(
+                  fontFamily: 'Nunito',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: AppColors.ink900),
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => onSubmit(),
+            ),
+          ),
+          IconButton(
+            tooltip: '查',
+            onPressed: running ? null : onSubmit,
+            icon: running
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.arrow_forward_rounded,
+                    color: AppColors.peach700),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LookupResultCard extends StatelessWidget {
+  final LookupResult result;
+  final bool saved;
+  final VoidCallback onSave;
+  final VoidCallback onClose;
+  const _LookupResultCard({
+    required this.result,
+    required this.saved,
+    required this.onSave,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final r = result;
+    if (r.notFound) {
+      return CreamCard(
+        child: Row(
+          children: [
+            const Text('🤔', style: TextStyle(fontSize: 22)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                r.grammar.isEmpty
+                    ? '没查到这个词，要不换个写法？'
+                    : r.grammar,
+                style: const TextStyle(
+                    fontFamily: 'Nunito',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    height: 1.45),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, size: 18),
+              onPressed: onClose,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return CreamCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(r.wordIt,
+                        style: const TextStyle(
+                            fontFamily: 'Nunito',
+                            fontWeight: FontWeight.w900,
+                            fontSize: 22,
+                            color: AppColors.peach700,
+                            height: 1.15)),
+                    if (r.pos.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(r.pos,
+                            style: const TextStyle(
+                                fontFamily: 'Nunito',
+                                fontWeight: FontWeight.w600,
+                                fontSize: 11,
+                                color: AppColors.ink400)),
+                      ),
+                  ],
+                ),
+              ),
+              _BookmarkButton(saved: saved, onPressed: onSave),
+              const SizedBox(width: 4),
+              IconButton(
+                tooltip: '关闭',
+                iconSize: 18,
+                padding: EdgeInsets.zero,
+                constraints:
+                    const BoxConstraints.tightFor(width: 32, height: 32),
+                icon: const Icon(Icons.close_rounded,
+                    color: AppColors.ink400),
+                onPressed: onClose,
+              ),
+            ],
+          ),
+          if (r.wordZh.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(r.wordZh,
+                style: const TextStyle(
+                    fontFamily: 'Nunito',
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    color: AppColors.ink900,
+                    height: 1.4)),
+          ],
+          if (r.grammar.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(r.grammar,
+                style: const TextStyle(
+                    fontFamily: 'Nunito',
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: AppColors.ink600,
+                    height: 1.45)),
+          ],
+          if (r.examples.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Text('例句',
+                style: TextStyle(
+                    fontFamily: 'Nunito',
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                    letterSpacing: 0.5,
+                    color: AppColors.ink400)),
+            const SizedBox(height: 4),
+            ...r.examples.map((e) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.cream100,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(
+                          color: AppColors.cream300, width: 1.2),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(e.it,
+                            style: const TextStyle(
+                                fontFamily: 'Nunito',
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                height: 1.4)),
+                        if (e.zh.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(e.zh,
+                                style: const TextStyle(
+                                    fontFamily: 'Nunito',
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 11,
+                                    color: AppColors.ink600,
+                                    height: 1.4)),
+                          ),
+                      ],
+                    ),
+                  ),
+                )),
+          ],
+          if (r.related.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            const Text('相关词',
+                style: TextStyle(
+                    fontFamily: 'Nunito',
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                    letterSpacing: 0.5,
+                    color: AppColors.ink400)),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: r.related.map((s) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.peach200.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Text(s,
+                      style: const TextStyle(
+                          fontFamily: 'Nunito',
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
+                          color: AppColors.peach700)),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineError extends StatelessWidget {
+  final String message;
+  const _InlineError({required this.message});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.rose300,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.ink900, width: 1.5),
+      ),
+      child: Row(children: [
+        const Text('⚠', style: TextStyle(fontSize: 18)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            message,
+            style: const TextStyle(
+                fontFamily: 'Nunito',
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                height: 1.5),
+          ),
+        ),
+      ]),
     );
   }
 }
