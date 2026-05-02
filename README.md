@@ -76,6 +76,14 @@ dart run tool/skill_test.dart food-safety --image dinner.jpg
 | [privacy-policy.md](docs/privacy-policy.md) | 隐私政策（中英） |
 | [terms-of-service.md](docs/terms-of-service.md) | 使用条款（中英） |
 
+## Sponsor / Donate
+
+If good-dad is useful to you, consider supporting the project:
+
+- **[Buy Me a Coffee](https://buymeacoffee.com/xiangdong14)** — one-time or monthly support
+
+Thank you.
+
 ## License
 
 私有。
