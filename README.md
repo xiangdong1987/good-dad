@@ -78,4 +78,4 @@ dart run tool/skill_test.dart food-safety --image dinner.jpg
 
 ## License
 
-私有。
+[MIT](LICENSE) © 2026 xiang dongdong
