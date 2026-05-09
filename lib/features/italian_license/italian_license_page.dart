@@ -8,6 +8,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/memory/memory_repository.dart';
 import '../../core/profile/profile.dart';
 import '../../core/profile/profile_repository.dart';
+import '../../core/voice/agent/page_context_provider.dart';
+import '../../core/voice/voice_types.dart' as voice_types;
 import '../../ui/theme.dart';
 import '../../ui/widgets/cream_widgets.dart';
 import '../italian_vocab/italian_vocab_page.dart';
@@ -45,7 +47,25 @@ class _ItalianLicensePageState extends ConsumerState<ItalianLicensePage> {
   @override
   void dispose() {
     _lookupCtl.dispose();
+    // 离开页面时清空 voice agent 的页面上下文。
+    ref.read(pageContextProvider.notifier).state = null;
     super.dispose();
+  }
+
+  void _publishPageContext(ItalianLicenseRun run) {
+    final r = run.result;
+    ref.read(pageContextProvider.notifier).state = voice_types.PageContext(
+      kind: 'italian_license',
+      payload: {
+        'questionIt': r.questionIt,
+        'questionZh': r.questionZh,
+        'options': r.options
+            .map((o) => '${o.letter}) ${o.it}')
+            .toList(),
+        'answer': r.answer,
+        'explanationZh': r.explanationZh,
+      },
+    );
   }
 
   @override
@@ -211,6 +231,7 @@ class _ItalianLicensePageState extends ConsumerState<ItalianLicensePage> {
         _result = run;
         _running = false;
       });
+      _publishPageContext(run);
       _refreshSavedSlugs();
     } on ItalianLicenseError catch (e) {
       if (!mounted) return;
@@ -324,6 +345,7 @@ class _ItalianLicensePageState extends ConsumerState<ItalianLicensePage> {
                   _result = null;
                   _previewBytes = null;
                 });
+                ref.read(pageContextProvider.notifier).state = null;
               },
             ),
 

@@ -131,36 +131,6 @@ class _HomeContent extends ConsumerWidget {
                   ))
               .toList(),
         ),
-        const SizedBox(height: 14),
-
-        // 聊聊横条
-        CreamCard(
-          onTap: () => context.push('/chat'),
-          padding: const EdgeInsets.all(14),
-          child: Row(children: const [
-            Sticker(emoji: '💬', size: 44),
-            SizedBox(width: 12),
-            Expanded(
-                child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('聊聊',
-                    style: TextStyle(
-                        fontFamily: 'Nunito',
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14)),
-                SizedBox(height: 2),
-                Text('什么都能问，不用客气',
-                    style: TextStyle(
-                        fontFamily: 'Nunito',
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                        color: AppColors.ink600)),
-              ],
-            )),
-            Icon(Icons.chevron_right_rounded, color: AppColors.peach700),
-          ]),
-        ),
       ],
     );
   }

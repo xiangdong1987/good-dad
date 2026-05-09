@@ -7,8 +7,11 @@ import 'core/i18n/locale_provider.dart';
 import 'core/notification/weekly_notifier.dart';
 import 'core/profile/profile.dart';
 import 'core/profile/profile_repository.dart';
+import 'core/voice/voice_keys.dart';
 import 'router.dart';
 import 'ui/theme.dart';
+import 'ui/widgets/voice_button.dart';
+import 'ui/widgets/voice_overlay.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,6 +43,7 @@ class GoodDadApp extends ConsumerWidget {
       title: 'GoodDad',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
+      scaffoldMessengerKey: voiceMessengerKey,
       routerConfig: appRouter,
       locale: locale.toFlutterLocale(),
       supportedLocales: AppLocale.values
@@ -50,6 +54,22 @@ class GoodDadApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+      builder: (context, child) {
+        final keyboardOpen =
+            MediaQuery.of(context).viewInsets.bottom > 0;
+        return Stack(
+          children: [
+            child ?? const SizedBox.shrink(),
+            if (!keyboardOpen)
+              const Positioned(
+                right: 16,
+                bottom: 24,
+                child: VoiceButton(),
+              ),
+            if (!keyboardOpen) const VoiceOverlay(),
+          ],
+        );
+      },
     );
   }
 }
