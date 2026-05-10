@@ -22,6 +22,7 @@ class VoiceSettingsSection extends ConsumerStatefulWidget {
 class _VoiceSettingsSectionState
     extends ConsumerState<VoiceSettingsSection> {
   final _ttsVoiceIdCtl = TextEditingController();
+  final _ttsPathCtl = TextEditingController();
   double _speed = 1.0;
 
   bool _hydrated = false;
@@ -32,11 +33,13 @@ class _VoiceSettingsSectionState
   @override
   void dispose() {
     _ttsVoiceIdCtl.dispose();
+    _ttsPathCtl.dispose();
     super.dispose();
   }
 
   void _hydrate(VoiceConfig cfg) {
     _ttsVoiceIdCtl.text = cfg.ttsVoiceId;
+    _ttsPathCtl.text = cfg.ttsPath;
     _speed = cfg.speed;
     _hydrated = true;
   }
@@ -44,6 +47,9 @@ class _VoiceSettingsSectionState
   Future<void> _save() async {
     final cfg = VoiceConfig(
       ttsVoiceId: _ttsVoiceIdCtl.text.trim(),
+      ttsPath: _ttsPathCtl.text.trim().isEmpty
+          ? VoiceConfig.defaultTtsPath
+          : _ttsPathCtl.text.trim(),
       speed: _speed,
     );
     await ref.read(voiceConfigProvider.notifier).save(cfg);
@@ -106,6 +112,56 @@ class _VoiceSettingsSectionState
     }
   }
 
+  Future<void> _probeTtsPath() async {
+    setState(() {
+      _busy = true;
+      _result = null;
+    });
+    final llm = ref.read(llmConfigProvider).valueOrNull;
+    if (llm == null || llm.baseUrl.isEmpty || llm.apiKey.isEmpty) {
+      setState(() {
+        _busy = false;
+        _ok = false;
+        _result = '❌ 先去上面 LLM 段填 baseURL + apiKey';
+      });
+      return;
+    }
+    final prober = MimoTtsProber(
+      baseUrl: llm.baseUrl,
+      apiKey: llm.apiKey,
+      voiceId: _ttsVoiceIdCtl.text.trim(),
+    );
+    try {
+      final r = await prober.probe();
+      if (r.workingPath != null) {
+        _ttsPathCtl.text = r.workingPath!;
+        await _save();
+        if (!mounted) return;
+        final tried = r.attempts.map((a) => '${a.path}=${a.statusCode}').join('\n');
+        setState(() {
+          _busy = false;
+          _ok = true;
+          _result = '✅ 找到了：${r.workingPath}（已自动保存）\n\n试过的路径：\n$tried';
+        });
+      } else {
+        if (!mounted) return;
+        final tried = r.attempts.map((a) => '${a.path}=${a.statusCode}').join('\n');
+        setState(() {
+          _busy = false;
+          _ok = false;
+          _result = '❌ 全 404，没找到。需要去 mimo 文档手动填：\n\n$tried';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _ok = false;
+        _result = '❌ 探测失败：$e';
+      });
+    }
+  }
+
   Future<void> _testMicPermission() async {
     final granted =
         await ref.read(micPermissionProvider).ensureGranted();
@@ -140,6 +196,16 @@ class _VoiceSettingsSectionState
               ),
             ),
             const SizedBox(height: 16),
+            TextField(
+              controller: _ttsPathCtl,
+              decoration: const InputDecoration(
+                labelText: 'TTS endpoint 路径',
+                hintText: '默认 /v1/audio/speech；按 mimo 文档调整',
+                helperText: '404 时多半是这条路径要改',
+              ),
+              autocorrect: false,
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: _ttsVoiceIdCtl,
               decoration: const InputDecoration(
@@ -196,6 +262,12 @@ class _VoiceSettingsSectionState
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _probeTtsPath,
+              icon: const Icon(Icons.search_outlined),
+              label: const Text('探测正确 TTS 路径'),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(

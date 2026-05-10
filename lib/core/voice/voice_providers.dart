@@ -28,6 +28,11 @@ final audioRecorderProvider = Provider<AudioRecorderService>((ref) {
   return svc;
 });
 
+/// 实时录音音量 0-1，UI 拿来画波形。非录音时流没事件 → UI 用 0 兜底。
+final voiceAmplitudeProvider = StreamProvider<double>((ref) {
+  return ref.watch(audioRecorderProvider).amplitudeStream();
+});
+
 /// 单例：播放服务（持有 just_audio 的 AudioPlayer）。
 final audioPlayerProvider = Provider<AudioPlayerService>((ref) {
   final svc = AudioPlayerService();
@@ -58,6 +63,7 @@ final mimoTtsClientProvider = Provider<MimoTtsClient?>((ref) {
     baseUrl: llm.baseUrl,
     apiKey: llm.apiKey,
     voiceId: voice.ttsVoiceId,
+    path: voice.ttsPath,
     speed: voice.speed,
     logger: ref.watch(llmLogRepositoryProvider),
   );

@@ -76,5 +76,15 @@ class AudioRecorderService {
 
   Future<bool> isRecording() => _recorder.isRecording();
 
+  /// 实时音量（normalized 0-1）。dBFS：silence≈-60, voice≈-30~-10, loud≈0。
+  /// 仅在录音时有数据；非录音时流上没事件，UI 应自己回到 0。
+  Stream<double> amplitudeStream({Duration interval = const Duration(milliseconds: 80)}) {
+    return _recorder.onAmplitudeChanged(interval).map((a) {
+      final dbfs = a.current.isFinite ? a.current : -60.0;
+      final norm = ((dbfs + 60) / 60).clamp(0.0, 1.0);
+      return norm;
+    });
+  }
+
   Future<void> dispose() => _recorder.dispose();
 }

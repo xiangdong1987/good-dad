@@ -22,17 +22,20 @@ class MimoTtsClient {
   final String apiKey;
   final String voiceId;
   final double speed;
+
+  /// HTTP 路径（拼在 baseUrl 后），从 [VoiceConfig.ttsPath] 来；可在设置页改。
+  /// 默认 `/v1/audio/speech`（OpenAI 兼容），404 时大概率是这里要换成厂商正确路径。
+  final String path;
+
   final LlmLogRepository? logger;
 
   final Dio _dio;
-
-  /// 默认接口路径。如果文档显示是别的（如 /tts/v2.5/synthesis），改这里。
-  static const _defaultPath = '/v1/audio/speech';
 
   MimoTtsClient({
     required this.baseUrl,
     required this.apiKey,
     required this.voiceId,
+    required this.path,
     this.speed = 1.0,
     this.logger,
     Dio? dio,
@@ -133,10 +136,13 @@ class MimoTtsClient {
     while (base.endsWith('/')) {
       base = base.substring(0, base.length - 1);
     }
-    if (base.endsWith('/v1')) {
+    var p = path.trim();
+    if (!p.startsWith('/')) p = '/$p';
+    // 自动去重：path 如果以 /v1 开头但 base 也以 /v1 结尾，砍 base 的 /v1
+    if (p.startsWith('/v1') && base.endsWith('/v1')) {
       base = base.substring(0, base.length - 3);
     }
-    return '$base$_defaultPath';
+    return '$base$p';
   }
 
   bool _looksLikeJson(List<int> bytes) {
@@ -206,4 +212,110 @@ class MimoTtsException implements Exception {
 
   @override
   String toString() => 'MimoTtsException: $message';
+}
+
+/// 一组 mimo / OpenAI 兼容 / Azure 等 TTS 服务常见路径，按出现频率排序。
+/// 探测时按这个顺序试，遇到非 404 就停（200 = 成功；401/403 = 路径对了但 auth/voice id 问题）。
+const List<String> kTtsCommonPaths = [
+  '/v1/audio/speech', // OpenAI
+  '/v1/tts',
+  '/v1/audio/tts',
+  '/v1/text-to-speech',
+  '/v1/speech',
+  '/v1/speech/synthesize',
+  '/v2.5/tts',
+  '/v2.5/audio/speech',
+  '/openapi/tts',
+  '/openapi/v1/tts',
+  '/api/v1/tts',
+  '/tts/v2.5',
+  '/tts/v1/synthesize',
+];
+
+/// 探测 TTS endpoint：用最小请求体打每个候选路径，遇到 **非 404** 就返回该路径。
+/// 401/403/400 都算"路径找对了，是别的问题"——通常意味着这就是正确路径。
+///
+/// 返回 null 表示所有候选都 404（或全部失败）；调用方应提示用户去文档手动填。
+class MimoTtsProber {
+  final String baseUrl;
+  final String apiKey;
+  final String voiceId;
+  final Dio _dio;
+
+  MimoTtsProber({
+    required this.baseUrl,
+    required this.apiKey,
+    required this.voiceId,
+    Dio? dio,
+  }) : _dio = dio ??
+            Dio(BaseOptions(
+              connectTimeout: const Duration(seconds: 5),
+              receiveTimeout: const Duration(seconds: 8),
+              sendTimeout: const Duration(seconds: 5),
+              validateStatus: (_) => true, // 自己处理状态码
+            ));
+
+  Future<TtsProbeResult> probe({List<String>? paths}) async {
+    final list = paths ?? kTtsCommonPaths;
+    final attempts = <TtsProbeAttempt>[];
+    for (final p in list) {
+      final url = _resolve(p);
+      try {
+        final resp = await _dio.post<dynamic>(
+          url,
+          data: {
+            'model': 'speech-2.5',
+            'voice': voiceId.isEmpty ? 'default' : voiceId,
+            'input': 'ping',
+            'response_format': 'mp3',
+          },
+          options: Options(
+            headers: {
+              'Authorization': 'Bearer $apiKey',
+              'Content-Type': 'application/json',
+            },
+          ),
+        );
+        final code = resp.statusCode ?? -1;
+        attempts.add(TtsProbeAttempt(path: p, statusCode: code));
+        if (code != 404) {
+          // 找到了——404 是 path 不存在；其它都视为 path 对路
+          return TtsProbeResult(workingPath: p, attempts: attempts);
+        }
+      } catch (e) {
+        attempts.add(TtsProbeAttempt(path: p, statusCode: -1, error: '$e'));
+      }
+    }
+    return TtsProbeResult(workingPath: null, attempts: attempts);
+  }
+
+  String _resolve(String p) {
+    var base = baseUrl.trim();
+    while (base.endsWith('/')) {
+      base = base.substring(0, base.length - 1);
+    }
+    var path = p;
+    if (!path.startsWith('/')) path = '/$path';
+    if (path.startsWith('/v1') && base.endsWith('/v1')) {
+      base = base.substring(0, base.length - 3);
+    }
+    return '$base$path';
+  }
+}
+
+class TtsProbeResult {
+  final String? workingPath;
+  final List<TtsProbeAttempt> attempts;
+  const TtsProbeResult({required this.workingPath, required this.attempts});
+}
+
+class TtsProbeAttempt {
+  final String path;
+  final int statusCode; // -1 表示连接错误
+  final String? error;
+  const TtsProbeAttempt({
+    required this.path,
+    required this.statusCode,
+    this.error,
+  });
 }

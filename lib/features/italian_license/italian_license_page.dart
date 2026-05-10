@@ -1,6 +1,5 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -940,6 +939,24 @@ class _LookupBar extends StatelessWidget {
     required this.onSubmit,
   });
 
+  Future<void> _pasteAndQuery(BuildContext context) async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text?.trim() ?? '';
+    if (text.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('剪贴板里没有文字'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+      return;
+    }
+    controller.text = text;
+    controller.selection = TextSelection.collapsed(offset: text.length);
+    onSubmit();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -949,47 +966,71 @@ class _LookupBar extends StatelessWidget {
         border: Border.all(color: AppColors.cream300, width: 1.5),
       ),
       padding: const EdgeInsets.fromLTRB(14, 4, 6, 4),
-      child: Row(
-        children: [
-          const Text('🔍', style: TextStyle(fontSize: 16)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              enabled: !running,
-              decoration: const InputDecoration(
-                hintText: '查词：意大利语 / 中文',
-                hintStyle: TextStyle(
-                    fontFamily: 'Nunito',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    color: AppColors.ink400),
-                border: InputBorder.none,
-                isCollapsed: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 14),
+      child: ValueListenableBuilder<TextEditingValue>(
+        valueListenable: controller,
+        builder: (ctx, value, _) {
+          final hasText = value.text.isNotEmpty;
+          return Row(
+            children: [
+              const Text('🔍', style: TextStyle(fontSize: 16)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  enabled: !running,
+                  decoration: const InputDecoration(
+                    hintText: '查词：意大利语 / 中文',
+                    hintStyle: TextStyle(
+                        fontFamily: 'Nunito',
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: AppColors.ink400),
+                    border: InputBorder.none,
+                    isCollapsed: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  style: const TextStyle(
+                      fontFamily: 'Nunito',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: AppColors.ink900),
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) => onSubmit(),
+                ),
               ),
-              style: const TextStyle(
-                  fontFamily: 'Nunito',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                  color: AppColors.ink900),
-              textInputAction: TextInputAction.search,
-              onSubmitted: (_) => onSubmit(),
-            ),
-          ),
-          IconButton(
-            tooltip: '查',
-            onPressed: running ? null : onSubmit,
-            icon: running
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.arrow_forward_rounded,
-                    color: AppColors.peach700),
-          ),
-        ],
+              // 一键清除（输入框有内容时显示）
+              if (hasText)
+                IconButton(
+                  tooltip: '清空',
+                  iconSize: 18,
+                  visualDensity: VisualDensity.compact,
+                  onPressed: running ? null : () => controller.clear(),
+                  icon: const Icon(Icons.close_rounded, color: AppColors.ink400),
+                ),
+              // 剪贴板快查
+              IconButton(
+                tooltip: '剪贴板快查',
+                iconSize: 20,
+                visualDensity: VisualDensity.compact,
+                onPressed: running ? null : () => _pasteAndQuery(context),
+                icon: const Icon(Icons.content_paste_rounded,
+                    color: AppColors.ink600),
+              ),
+              IconButton(
+                tooltip: '查',
+                onPressed: running ? null : onSubmit,
+                icon: running
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.arrow_forward_rounded,
+                        color: AppColors.peach700),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

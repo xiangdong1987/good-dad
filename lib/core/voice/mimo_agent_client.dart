@@ -13,10 +13,11 @@ void _alog(String msg) => debugPrint('[MimoAgent] $msg');
 ///
 /// 文档：https://platform.xiaomimimo.com/docs/zh-CN/usage-guide/multimodal-understanding/audio-understanding
 ///
-/// 直接把用户录音 + system prompt + 工具定义一起发给模型，让模型同时做：
-/// 1. 「听」用户音频
-/// 2. 「理解」生成 JSON 决定调用哪个工具
-/// 3. 「说」直接返回音频字节（如果配了 voiceId，走 modalities: text+audio）
+/// 直接把用户录音 + system prompt + 工具定义一起发给模型，让模型「听 + 理解 + 决策」。
+///
+/// 默认**只要文字回复**，TTS 走独立的 `/v1/audio/speech` 路径。
+/// 想用「文字 + 音频一并返回」的 modalities 协议，把 [useInlineAudio] 设为 true
+/// （但前提是 mimo 真支持 OpenAI gpt-4o-audio 那套，否则返回会变空）。
 ///
 /// baseURL / apiKey / model 复用 LLM 配置（视觉模型 = 多模态模型）。
 class MimoAgentClient {
@@ -24,8 +25,12 @@ class MimoAgentClient {
   final String apiKey;
   final String model;
 
-  /// 模型直接合成语音用的声音 id；为空则只返回文字（orchestrator 走兜底 TTS）。
+  /// 模型直接合成语音用的声音 id；只在 [useInlineAudio] 为 true 时才用。
   final String? voiceId;
+
+  /// 是否启用「文字 + 音频一起返回」的 modalities 协议（实验性）。
+  /// 默认 false——mimo 是否兼容 OpenAI gpt-4o-audio 协议未知，开了可能导致 content 为空。
+  final bool useInlineAudio;
 
   /// 可选日志仓库；非 null 时每次调用写一条日志到设置页可见。
   final LlmLogRepository? logger;
@@ -39,6 +44,7 @@ class MimoAgentClient {
     required this.apiKey,
     required this.model,
     this.voiceId,
+    this.useInlineAudio = false,
     this.logger,
     Dio? dio,
   }) : _dio = dio ??
@@ -51,7 +57,8 @@ class MimoAgentClient {
   bool get isReady =>
       baseUrl.isNotEmpty && apiKey.isNotEmpty && model.isNotEmpty;
 
-  bool get audioOutputEnabled => (voiceId ?? '').isNotEmpty;
+  bool get audioOutputEnabled =>
+      useInlineAudio && (voiceId ?? '').isNotEmpty;
 
   /// 把音频 + 上下文 + 工具集发给模型，期望返回 JSON intent。
   Future<AgentResponse> understand({

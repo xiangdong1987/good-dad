@@ -8,12 +8,14 @@ import 'core/notification/weekly_notifier.dart';
 import 'core/profile/profile.dart';
 import 'core/profile/profile_repository.dart';
 import 'core/voice/voice_keys.dart';
+import 'core/voice/voice_onboarding.dart';
 import 'router.dart';
 import 'ui/theme.dart';
 import 'ui/widgets/composer_button.dart';
 import 'ui/widgets/composer_sheet.dart';
 import 'ui/widgets/voice_button.dart';
 import 'ui/widgets/voice_overlay.dart';
+import 'ui/widgets/voice_tutorial_overlay.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,13 +64,17 @@ class GoodDadApp extends ConsumerWidget {
         return Stack(
           children: [
             child ?? const SizedBox.shrink(),
+            // tutorial 在 buttons 下面：buttons 仍可点，tutorial 的 backdrop 接「别处点」dismiss
+            if (!keyboardOpen) const VoiceTutorialOverlay(),
             if (!keyboardOpen)
               Positioned(
                 right: 80,
                 bottom: 24,
                 child: ComposerButton(
                   onTap: () {
-                    // Stack overlay 在 Navigator 上方，得用 appRouter 的 navigator key 拿真正能弹 sheet 的 context。
+                    ref
+                        .read(voiceOnboardingProvider.notifier)
+                        .markSeen();
                     final navCtx = appRouter
                         .routerDelegate.navigatorKey.currentContext;
                     if (navCtx == null) {

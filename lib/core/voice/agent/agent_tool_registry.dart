@@ -9,6 +9,7 @@ import '../tools/forget_fact_tool.dart';
 import '../tools/get_weather_tool.dart';
 import '../tools/list_facts_tool.dart';
 import '../tools/navigate_to_tool.dart';
+import '../tools/query_food_safety_tool.dart';
 import '../tools/read_italian_question_tool.dart';
 import '../tools/remember_fact_tool.dart';
 import '../tools/update_persona_tool.dart';
@@ -65,6 +66,7 @@ final agentToolRegistryProvider = Provider<AgentToolRegistry>(
     AddCalendarTaskTool(),
     NavigateToTool(),
     GetWeatherTool(),
+    QueryFoodSafetyTool(),
     RememberFactTool(),
     ForgetFactTool(),
     ListFactsTool(),
