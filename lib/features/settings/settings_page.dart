@@ -12,6 +12,8 @@ import '../../core/i18n/locale_provider.dart';
 import '../../core/llm/types.dart';
 import '../../core/memory/memory_repository.dart';
 import '../../core/notification/weekly_notifier.dart';
+import '../voice/voice_settings_section.dart';
+import 'agent_persona_section.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -302,6 +304,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ),
               ],
               const SizedBox(height: 32),
+              const _SectionTitle('语音 (xiaomimimo)'),
+              const SizedBox(height: 8),
+              const VoiceSettingsSection(),
+              const SizedBox(height: 32),
+              const _SectionTitle('Agent 个性'),
+              const SizedBox(height: 8),
+              const AgentPersonaSection(),
+              const SizedBox(height: 32),
               const _SectionTitle('家庭'),
               const SizedBox(height: 8),
               ListTile(
@@ -370,6 +380,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 subtitle: const Text('查看内置 SKILL.md'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.push('/skills'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.bug_report_outlined),
+                title: const Text('LLM 调试日志'),
+                subtitle: const Text('看每次大模型调用的请求/响应/耗时'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/llm-log'),
               ),
               Consumer(builder: (ctx, ref, _) {
                 final loc = ref.watch(localeProvider).valueOrNull ??

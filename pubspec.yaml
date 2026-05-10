@@ -47,6 +47,14 @@ dependencies:
   flutter_local_notifications: ^17.1.2
   timezone: ^0.9.4
 
+  # Voice agent (xiaomimimo audio understanding + TTS)
+  # record 录 WAV/PCM/AAC 各平台稳定；如果 mimo 必须 MP3，再加 ffmpeg 转。
+  record: ^5.2.1
+  just_audio: ^0.9.40
+  permission_handler: ^11.3.1
+  # 系统 TTS 兜底：mimo TTS 没配置或失败时，用平台原生 TTS 念出来。
+  flutter_tts: ^4.2.0
+
   # Utilities
   collection: ^1.18.0
   intl: ^0.20.2
@@ -62,6 +70,12 @@ dev_dependencies:
   mocktail: ^1.0.3
   flutter_launcher_icons: ^0.14.1
   flutter_native_splash: ^2.4.0
+
+# pub 自动解析把 record_linux 锁到了过老的 0.7.2，跟 platform_interface 1.5.0 接口
+# 缺方法导致 kernel_snapshot 编译失败。强制升到 1.x。mobile 端不走 linux 实现。
+dependency_overrides:
+  record_linux: ^1.0.0
+
 
 # ── App icon（运行：dart run flutter_launcher_icons） ──
 flutter_launcher_icons:
@@ -94,3 +108,7 @@ flutter:
     - assets/skills/belly-photo/
     - assets/skills/prenatal-prep/
     - assets/skills/baby-shopping/
+    - assets/skills/italian-license/
+    - assets/skills/italian-vocab-study/
+    - assets/skills/italian-lookup/
+    - assets/agent/

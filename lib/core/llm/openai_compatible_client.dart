@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import '../config/llm_config.dart';
+import '../llm_log/llm_log_recorder.dart';
+import '../llm_log/llm_log_repository.dart';
 import 'llm_client.dart';
 import 'types.dart';
 
@@ -13,9 +15,10 @@ import 'types.dart';
 /// exposes a `/v1/chat/completions` endpoint with SSE streaming.
 class OpenAICompatibleClient extends LlmClient {
   final LlmConfig config;
+  final LlmLogRepository? logger;
   final Dio _dio;
 
-  OpenAICompatibleClient(this.config, {Dio? dio})
+  OpenAICompatibleClient(this.config, {this.logger, Dio? dio})
       : _dio = dio ??
             Dio(BaseOptions(
               connectTimeout: const Duration(seconds: 30),
@@ -95,6 +98,14 @@ class OpenAICompatibleClient extends LlmClient {
     };
 
     final url = _resolveUrl();
+    final scope = LlmLogScope.start(
+      logger,
+      channel: 'openai',
+      model: usedModel,
+      requestSummary: _summarizeMessages(messages),
+      rawRequest: _safeRawRequest(body),
+    );
+
     final Response<ResponseBody> resp;
     try {
       resp = await _dio.post<ResponseBody>(
@@ -110,6 +121,11 @@ class OpenAICompatibleClient extends LlmClient {
         ),
       );
     } on DioException catch (e) {
+      scope.error(
+        message: e.message ?? '网络错误',
+        statusCode: e.response?.statusCode,
+        rawResponse: e.response?.data?.toString(),
+      );
       throw LlmException(
         e.message ?? '网络错误',
         statusCode: e.response?.statusCode,
@@ -123,35 +139,46 @@ class OpenAICompatibleClient extends LlmClient {
         .transform(const LineSplitter());
 
     final buffer = StringBuffer();
-    await for (final raw in stream) {
-      final line = raw.trim();
-      if (line.isEmpty) continue;
-      if (!line.startsWith('data:')) continue;
-      final payload = line.substring(5).trim();
-      if (payload == '[DONE]') {
-        yield LlmChunk('', done: true);
-        return;
-      }
-      Map<String, dynamic> json;
-      try {
-        json = jsonDecode(payload) as Map<String, dynamic>;
-      } catch (_) {
-        continue;
-      }
-      final choices = json['choices'];
-      if (choices is List && choices.isNotEmpty) {
-        final delta = choices.first['delta'];
-        if (delta is Map<String, dynamic>) {
-          final content = delta['content'];
-          if (content is String && content.isNotEmpty) {
-            buffer.write(content);
-            yield LlmChunk(content);
+    try {
+      await for (final raw in stream) {
+        final line = raw.trim();
+        if (line.isEmpty) continue;
+        if (!line.startsWith('data:')) continue;
+        final payload = line.substring(5).trim();
+        if (payload == '[DONE]') {
+          scope.success(
+            responseSummary: buffer.toString(),
+            statusCode: resp.statusCode,
+          );
+          yield LlmChunk('', done: true);
+          return;
+        }
+        Map<String, dynamic> json;
+        try {
+          json = jsonDecode(payload) as Map<String, dynamic>;
+        } catch (_) {
+          continue;
+        }
+        final choices = json['choices'];
+        if (choices is List && choices.isNotEmpty) {
+          final delta = choices.first['delta'];
+          if (delta is Map<String, dynamic>) {
+            final content = delta['content'];
+            if (content is String && content.isNotEmpty) {
+              buffer.write(content);
+              yield LlmChunk(content);
+            }
           }
         }
       }
-    }
-    if (buffer.isEmpty) {
-      // Some providers emit non-SSE responses; nothing to do.
+      // 流自然结束（没收到 [DONE]）
+      scope.success(
+        responseSummary: buffer.toString(),
+        statusCode: resp.statusCode,
+      );
+    } catch (e) {
+      scope.error(message: e.toString(), statusCode: resp.statusCode);
+      rethrow;
     }
     yield LlmChunk('', done: true);
   }
@@ -177,6 +204,14 @@ class OpenAICompatibleClient extends LlmClient {
       'messages': messages.map(_encodeMessage).toList(),
     };
 
+    final scope = LlmLogScope.start(
+      logger,
+      channel: 'openai',
+      model: usedModel,
+      requestSummary: _summarizeMessages(messages),
+      rawRequest: _safeRawRequest(body),
+    );
+
     try {
       final resp = await _dio.post<Map<String, dynamic>>(
         _resolveUrl(),
@@ -190,19 +225,81 @@ class OpenAICompatibleClient extends LlmClient {
         ),
       );
       final data = resp.data;
-      if (data == null) return '';
-      final choices = data['choices'];
-      if (choices is List && choices.isNotEmpty) {
-        final msg = choices.first['message'];
-        if (msg is Map && msg['content'] is String) {
-          return msg['content'] as String;
+      String content = '';
+      if (data != null) {
+        final choices = data['choices'];
+        if (choices is List && choices.isNotEmpty) {
+          final msg = choices.first['message'];
+          if (msg is Map && msg['content'] is String) {
+            content = msg['content'] as String;
+          }
         }
       }
-      return '';
+      scope.success(
+        responseSummary: content,
+        statusCode: resp.statusCode,
+        rawResponse: data == null ? null : jsonEncode(data),
+      );
+      return content;
     } on DioException catch (e) {
+      scope.error(
+        message: _formatDioError(e),
+        statusCode: e.response?.statusCode,
+        rawResponse: e.response?.data?.toString(),
+      );
       throw LlmException(_formatDioError(e),
           statusCode: e.response?.statusCode, cause: e);
+    } catch (e) {
+      scope.error(message: e.toString());
+      rethrow;
     }
+  }
+
+  /// 把图片字节剥掉的 raw request（防止日志膨胀）。
+  String _safeRawRequest(Map<String, dynamic> body) {
+    try {
+      final clone = Map<String, dynamic>.from(body);
+      final messages = clone['messages'];
+      if (messages is List) {
+        clone['messages'] = messages.map((m) {
+          if (m is! Map) return m;
+          final mm = Map<String, dynamic>.from(m);
+          final content = mm['content'];
+          if (content is List) {
+            mm['content'] = content.map((part) {
+              if (part is Map && part['type'] == 'image_url') {
+                final pp = Map<String, dynamic>.from(part);
+                final url = pp['image_url'];
+                if (url is Map && url['url'] is String) {
+                  final s = url['url'] as String;
+                  pp['image_url'] = {'url': '<${s.length}B image data url>'};
+                }
+                return pp;
+              }
+              return part;
+            }).toList();
+          }
+          return mm;
+        }).toList();
+      }
+      return jsonEncode(clone);
+    } catch (_) {
+      return jsonEncode({'_': 'raw request stripped'});
+    }
+  }
+
+  String _summarizeMessages(List<LlmMessage> messages) {
+    if (messages.isEmpty) return '<empty>';
+    // 取最后一条 user message 的文字
+    for (int i = messages.length - 1; i >= 0; i--) {
+      final m = messages[i];
+      if (m.role != LlmRole.user) continue;
+      final hasImg = m.hasImage;
+      final txt = m.textContent.trim();
+      if (txt.isEmpty && hasImg) return '<image only>';
+      return '${hasImg ? "[+image] " : ""}$txt';
+    }
+    return '${messages.length} msg';
   }
 
   /// Quick non-streaming sanity check for the settings page.

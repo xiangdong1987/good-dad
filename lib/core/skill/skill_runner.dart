@@ -294,6 +294,12 @@ class SkillRunner {
         return '请生成一份完整的待产准备清单';
       case 'baby-shopping':
         return '请生成一份分阶段的宝宝采购清单';
+      case 'italian-license':
+        return '请讲解这道意大利驾照题：翻译题目、给出答案、教关键词汇和语法';
+      case 'italian-vocab-study':
+        return '请按规定格式为下面这些单词各出一张学习卡';
+      case 'italian-lookup':
+        return '请帮我查这个词';
       default:
         return '请按你的角色给出建议';
     }

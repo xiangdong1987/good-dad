@@ -7,8 +7,15 @@ import 'core/i18n/locale_provider.dart';
 import 'core/notification/weekly_notifier.dart';
 import 'core/profile/profile.dart';
 import 'core/profile/profile_repository.dart';
+import 'core/voice/voice_keys.dart';
+import 'core/voice/voice_onboarding.dart';
 import 'router.dart';
 import 'ui/theme.dart';
+import 'ui/widgets/composer_button.dart';
+import 'ui/widgets/composer_sheet.dart';
+import 'ui/widgets/voice_button.dart';
+import 'ui/widgets/voice_overlay.dart';
+import 'ui/widgets/voice_tutorial_overlay.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,6 +47,7 @@ class GoodDadApp extends ConsumerWidget {
       title: 'GoodDad',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
+      scaffoldMessengerKey: voiceMessengerKey,
       routerConfig: appRouter,
       locale: locale.toFlutterLocale(),
       supportedLocales: AppLocale.values
@@ -50,6 +58,49 @@ class GoodDadApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+      builder: (context, child) {
+        final keyboardOpen =
+            MediaQuery.of(context).viewInsets.bottom > 0;
+        return Stack(
+          children: [
+            child ?? const SizedBox.shrink(),
+            // tutorial 在 buttons 下面：buttons 仍可点，tutorial 的 backdrop 接「别处点」dismiss
+            if (!keyboardOpen) const VoiceTutorialOverlay(),
+            if (!keyboardOpen)
+              Positioned(
+                right: 80,
+                bottom: 24,
+                child: ComposerButton(
+                  onTap: () {
+                    ref
+                        .read(voiceOnboardingProvider.notifier)
+                        .markSeen();
+                    final navCtx = appRouter
+                        .routerDelegate.navigatorKey.currentContext;
+                    if (navCtx == null) {
+                      debugPrint('[Composer] no navigator context');
+                      return;
+                    }
+                    showModalBottomSheet<void>(
+                      context: navCtx,
+                      isScrollControlled: true,
+                      useSafeArea: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => const ComposerSheet(),
+                    );
+                  },
+                ),
+              ),
+            if (!keyboardOpen)
+              const Positioned(
+                right: 16,
+                bottom: 24,
+                child: VoiceButton(),
+              ),
+            if (!keyboardOpen) const VoiceOverlay(),
+          ],
+        );
+      },
     );
   }
 }

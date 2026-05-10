@@ -8,11 +8,14 @@ import 'features/chat/chat_page.dart';
 import 'features/checklist/checklist_page.dart';
 import 'features/food_safety/food_safety_page.dart';
 import 'features/home/home_page.dart';
+import 'features/italian_license/italian_license_page.dart';
+import 'features/italian_vocab/italian_vocab_page.dart';
 import 'features/memory/memory_list_page.dart';
 import 'features/pregnancy/pregnancy_week_page.dart';
 import 'features/pregnancy_recipe/recipe_page.dart';
 import 'features/profile_edit/profile_edit_page.dart';
 import 'features/settings/settings_page.dart';
+import 'features/settings/llm_log_page.dart';
 import 'features/skills/skill_list_page.dart';
 
 final appRouter = GoRouter(
@@ -82,6 +85,21 @@ final appRouter = GoRouter(
       path: '/shopping',
       name: 'shopping',
       builder: (context, state) => const ShoppingPage(),
+    ),
+    GoRoute(
+      path: '/italian-license',
+      name: 'italian-license',
+      builder: (context, state) => const ItalianLicensePage(),
+    ),
+    GoRoute(
+      path: '/italian-vocab',
+      name: 'italian-vocab',
+      builder: (context, state) => const ItalianVocabPage(),
+    ),
+    GoRoute(
+      path: '/llm-log',
+      name: 'llm-log',
+      builder: (context, state) => const LlmLogPage(),
     ),
   ],
   errorBuilder: (context, state) => Scaffold(

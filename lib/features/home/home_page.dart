@@ -11,8 +11,35 @@ import '../onboarding/onboarding_page.dart';
 import 'today_card.dart';
 
 /// 首页 · 圆润奶油可爱风
-class HomePage extends ConsumerWidget {
+///
+/// 启动 gate：进首页时如果 LLM 还没配，post-frame 自动 push /settings 一次，
+/// 让爸爸第一时间填好 baseURL/apiKey/模型。已经跳过的话不再触发。
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
+
+  @override
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  static bool _llmGatePushed = false; // 整个 app 生命周期只跳一次
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _llmGatePushed) return;
+      // profile 未填的话 _HomeContent 会渲染 OnboardingPage —— 等爸爸先填家庭信息
+      final profile = ref.read(profileProvider).valueOrNull;
+      if (profile == null || !profile.isComplete) return;
+      // LLM 已配就不打扰
+      final llmReady = ref.read(llmClientProvider) != null;
+      if (llmReady) return;
+      _llmGatePushed = true;
+      context.push('/settings');
+    });
+  }
+
 
   static final _skills = <_Skill>[
     _Skill('能不能吃', '🍱', '拍一张，问我', AppColors.mint300, '/food'),
@@ -21,10 +48,11 @@ class HomePage extends ConsumerWidget {
     _Skill('肚肚照', '🤰', '本月该拍了', AppColors.peach200, '/belly'),
     _Skill('产前准备', '📋', '待产包', AppColors.cream200, '/checklist'),
     _Skill('宝宝采购', '🛒', '分阶段不囤', AppColors.rose300, '/shopping'),
+    _Skill('意大利驾照', '🚗', '拍题学语法', AppColors.peach300, '/italian-license'),
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final profileAsync = ref.watch(profileProvider);
 
     return Scaffold(
@@ -129,36 +157,6 @@ class _HomeContent extends ConsumerWidget {
                     onTap: () => context.push(s.route),
                   ))
               .toList(),
-        ),
-        const SizedBox(height: 14),
-
-        // 聊聊横条
-        CreamCard(
-          onTap: () => context.push('/chat'),
-          padding: const EdgeInsets.all(14),
-          child: Row(children: const [
-            Sticker(emoji: '💬', size: 44),
-            SizedBox(width: 12),
-            Expanded(
-                child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('聊聊',
-                    style: TextStyle(
-                        fontFamily: 'Nunito',
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14)),
-                SizedBox(height: 2),
-                Text('什么都能问，不用客气',
-                    style: TextStyle(
-                        fontFamily: 'Nunito',
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                        color: AppColors.ink600)),
-              ],
-            )),
-            Icon(Icons.chevron_right_rounded, color: AppColors.peach700),
-          ]),
         ),
       ],
     );
