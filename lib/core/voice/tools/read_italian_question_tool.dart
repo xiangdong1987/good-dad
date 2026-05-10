@@ -7,11 +7,19 @@ class ReadItalianQuestionTool extends AgentTool {
   String get name => 'read_italian_question';
 
   @override
-  String get descriptionZh =>
-      '在意大利驾照页念出当前题目（意大利语原文）。仅当 page kind = "italian_license" 时可用。';
+  String get descriptionZh => '在意大利驾照页念出当前题目（意大利语原文）';
 
   @override
-  String get argsHint => '无参数';
+  String get argsHint => '';
+
+  @override
+  String? get requiresPageKind => 'italian_license';
+
+  @override
+  List<ToolExample> get examples => const [
+        ToolExample('再读一遍', {}),
+        ToolExample('题目是什么', {}),
+      ];
 
   @override
   Future<ToolResult> invoke(

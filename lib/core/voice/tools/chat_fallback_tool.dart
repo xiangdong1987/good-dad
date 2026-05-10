@@ -8,11 +8,17 @@ class ChatFallbackTool extends AgentTool {
   String get name => 'chat_fallback';
 
   @override
-  String get descriptionZh =>
-      '其它意图都用这个：直接给用户口语回答，不调任何工具。';
+  String get descriptionZh => '兜底：用 speak 字段直接答；不调具体工具';
 
   @override
-  String get argsHint => '不需要参数；speak 字段就是口语回答';
+  String get argsHint => '';
+
+  @override
+  List<ToolExample> get examples => const [
+        ToolExample('我现在几周了', {}),
+        ToolExample('生鱼片能吃吗', {}),
+        ToolExample('宝宝什么时候开始踢肚子', {}),
+      ];
 
   @override
   Future<ToolResult> invoke(

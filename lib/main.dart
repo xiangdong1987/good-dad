@@ -10,6 +10,8 @@ import 'core/profile/profile_repository.dart';
 import 'core/voice/voice_keys.dart';
 import 'router.dart';
 import 'ui/theme.dart';
+import 'ui/widgets/composer_button.dart';
+import 'ui/widgets/composer_sheet.dart';
 import 'ui/widgets/voice_button.dart';
 import 'ui/widgets/voice_overlay.dart';
 
@@ -60,6 +62,29 @@ class GoodDadApp extends ConsumerWidget {
         return Stack(
           children: [
             child ?? const SizedBox.shrink(),
+            if (!keyboardOpen)
+              Positioned(
+                right: 80,
+                bottom: 24,
+                child: ComposerButton(
+                  onTap: () {
+                    // Stack overlay 在 Navigator 上方，得用 appRouter 的 navigator key 拿真正能弹 sheet 的 context。
+                    final navCtx = appRouter
+                        .routerDelegate.navigatorKey.currentContext;
+                    if (navCtx == null) {
+                      debugPrint('[Composer] no navigator context');
+                      return;
+                    }
+                    showModalBottomSheet<void>(
+                      context: navCtx,
+                      isScrollControlled: true,
+                      useSafeArea: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => const ComposerSheet(),
+                    );
+                  },
+                ),
+              ),
             if (!keyboardOpen)
               const Positioned(
                 right: 16,

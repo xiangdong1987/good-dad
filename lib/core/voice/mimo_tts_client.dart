@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../llm_log/llm_log_recorder.dart';
+import '../llm_log/llm_log_repository.dart';
+
 void _tlog(String msg) => debugPrint('[MimoTts] $msg');
 
 /// xiaomimimo TTS v2.5 client。
@@ -19,6 +22,7 @@ class MimoTtsClient {
   final String apiKey;
   final String voiceId;
   final double speed;
+  final LlmLogRepository? logger;
 
   final Dio _dio;
 
@@ -30,6 +34,7 @@ class MimoTtsClient {
     required this.apiKey,
     required this.voiceId,
     this.speed = 1.0,
+    this.logger,
     Dio? dio,
   }) : _dio = dio ??
             Dio(BaseOptions(
@@ -62,6 +67,16 @@ class MimoTtsClient {
 
     final url = _resolveUrl();
     _tlog('POST $url voice=${body['voice']} text="${_truncate(text, 60)}"');
+
+    final scope = LlmLogScope.start(
+      logger,
+      channel: 'mimo-tts',
+      model: body['model']?.toString() ?? 'speech-2.5',
+      requestSummary: 'voice=${body['voice']} speed=${body['speed']} '
+          'text="${_truncate(text, 100)}"',
+      rawRequest: jsonEncode(body),
+    );
+
     try {
       final resp = await _dio.post<List<int>>(
         url,
@@ -78,16 +93,38 @@ class MimoTtsClient {
       _tlog('HTTP ${resp.statusCode}, ${resp.data?.length ?? 0}B');
       final bytes = resp.data;
       if (bytes == null || bytes.isEmpty) {
+        scope.error(
+          message: 'TTS 返回空音频',
+          statusCode: resp.statusCode,
+        );
         throw const MimoTtsException('TTS 返回空音频');
       }
+      Uint8List finalBytes;
       if (_looksLikeJson(bytes)) {
-        return _extractAudioFromJson(bytes);
+        finalBytes = _extractAudioFromJson(bytes);
+      } else {
+        finalBytes = Uint8List.fromList(bytes);
       }
-      return Uint8List.fromList(bytes);
+      scope.success(
+        responseSummary: '${finalBytes.length}B audio',
+        statusCode: resp.statusCode,
+      );
+      return finalBytes;
     } on DioException catch (e) {
       _tlog('DioException: code=${e.response?.statusCode} body=${_truncate(e.response?.data?.toString() ?? e.message ?? "?", 400)}');
+      scope.error(
+        message: _formatDioError(e),
+        statusCode: e.response?.statusCode,
+        rawResponse: e.response?.data?.toString(),
+      );
       throw MimoTtsException(_formatDioError(e),
           statusCode: e.response?.statusCode, cause: e);
+    } on MimoTtsException catch (e) {
+      scope.error(message: e.message, statusCode: e.statusCode);
+      rethrow;
+    } catch (e) {
+      scope.error(message: e.toString());
+      rethrow;
     }
   }
 

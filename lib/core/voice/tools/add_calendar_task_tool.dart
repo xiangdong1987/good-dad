@@ -9,12 +9,24 @@ class AddCalendarTaskTool extends AgentTool {
   String get name => 'add_calendar_task';
 
   @override
-  String get descriptionZh =>
-      '把待办/产检/里程碑加到日程（日历）。用户说"加个 X 的日程"、"提醒我 X 天去 Y" 时调用。';
+  String get descriptionZh => '把待办/产检/里程碑加到日程';
 
   @override
   String get argsHint =>
-      'title:string(必填)、date:YYYY-MM-DD|今天|明天|后天|周一(必填)、kind?:todo|checkup|milestone|note、notes?:string';
+      'title:string、date:YYYY-MM-DD|今天|明天|后天|周一、kind?:todo|checkup|milestone|note、notes?:string';
+
+  @override
+  bool get writes => true;
+
+  @override
+  List<ToolExample> get examples => const [
+        ToolExample('帮我加个明天去体检的日程',
+            {'title': '去体检', 'date': '明天', 'kind': 'checkup'}),
+        ToolExample('提醒我下周一买孕妇维生素',
+            {'title': '买孕妇维生素', 'date': '下周一', 'kind': 'todo'}),
+        ToolExample('5 月 20 日 NT 检查',
+            {'title': 'NT 检查', 'date': '5月20日', 'kind': 'checkup'}),
+      ];
 
   @override
   Future<ToolResult> invoke(

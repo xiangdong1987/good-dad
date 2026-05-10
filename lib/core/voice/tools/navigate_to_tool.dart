@@ -26,12 +26,18 @@ class NavigateToTool extends AgentTool {
   String get name => 'navigate_to';
 
   @override
-  String get descriptionZh =>
-      '跳到 app 内某个页面。用户说"打开 X"、"去 Y 页面"时调用。';
+  String get descriptionZh => '跳到 app 内某个页面';
 
   @override
   String get argsHint =>
-      'route:string(必填)，可选值：${routes.keys.join(' | ')}';
+      'route: ${routes.keys.join(' | ')}';
+
+  @override
+  List<ToolExample> get examples => const [
+        ToolExample('打开意大利驾照', {'route': '/italian-license'}),
+        ToolExample('去日历看看', {'route': '/calendar'}),
+        ToolExample('回首页', {'route': '/'}),
+      ];
 
   @override
   Future<ToolResult> invoke(

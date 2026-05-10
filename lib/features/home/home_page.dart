@@ -11,8 +11,35 @@ import '../onboarding/onboarding_page.dart';
 import 'today_card.dart';
 
 /// 首页 · 圆润奶油可爱风
-class HomePage extends ConsumerWidget {
+///
+/// 启动 gate：进首页时如果 LLM 还没配，post-frame 自动 push /settings 一次，
+/// 让爸爸第一时间填好 baseURL/apiKey/模型。已经跳过的话不再触发。
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
+
+  @override
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  static bool _llmGatePushed = false; // 整个 app 生命周期只跳一次
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _llmGatePushed) return;
+      // profile 未填的话 _HomeContent 会渲染 OnboardingPage —— 等爸爸先填家庭信息
+      final profile = ref.read(profileProvider).valueOrNull;
+      if (profile == null || !profile.isComplete) return;
+      // LLM 已配就不打扰
+      final llmReady = ref.read(llmClientProvider) != null;
+      if (llmReady) return;
+      _llmGatePushed = true;
+      context.push('/settings');
+    });
+  }
+
 
   static final _skills = <_Skill>[
     _Skill('能不能吃', '🍱', '拍一张，问我', AppColors.mint300, '/food'),
@@ -25,7 +52,7 @@ class HomePage extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final profileAsync = ref.watch(profileProvider);
 
     return Scaffold(

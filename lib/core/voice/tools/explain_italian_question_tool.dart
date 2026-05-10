@@ -7,11 +7,20 @@ class ExplainItalianQuestionTool extends AgentTool {
   String get name => 'explain_italian_question';
 
   @override
-  String get descriptionZh =>
-      '讲解当前意大利驾照题目（中文）。仅当 page kind = "italian_license" 且已有讲解时可用。';
+  String get descriptionZh => '讲解当前意大利驾照题目（中文）';
 
   @override
-  String get argsHint => '无参数';
+  String get argsHint => '';
+
+  @override
+  String? get requiresPageKind => 'italian_license';
+
+  @override
+  List<ToolExample> get examples => const [
+        ToolExample('为什么选 B', {}),
+        ToolExample('讲一下这道', {}),
+        ToolExample('解释下', {}),
+      ];
 
   @override
   Future<ToolResult> invoke(

@@ -1,9 +1,21 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../agent_config/agent_loader.dart';
+import '../agent_config/agent_profile_repository.dart';
 import '../config/llm_config_provider.dart';
 import '../config/voice_config_provider.dart';
+import '../llm/llm_providers.dart';
+import '../llm/openai_compatible_client.dart';
+import '../llm_log/llm_log_repository.dart';
+import '../memory/memory_injector.dart';
+import '../profile/profile_repository.dart';
+import 'agent/agent_tool_registry.dart';
 import 'audio_player_service.dart';
 import 'audio_recorder_service.dart';
+import 'harness/mimo_reasoner.dart';
+import 'harness/openai_reasoner.dart';
+import 'harness/reasoner.dart';
+import 'harness/system_prompt_builder.dart';
 import 'mic_permission_service.dart';
 import 'mimo_agent_client.dart';
 import 'mimo_tts_client.dart';
@@ -47,6 +59,7 @@ final mimoTtsClientProvider = Provider<MimoTtsClient?>((ref) {
     apiKey: llm.apiKey,
     voiceId: voice.ttsVoiceId,
     speed: voice.speed,
+    logger: ref.watch(llmLogRepositoryProvider),
   );
 });
 
@@ -65,5 +78,41 @@ final mimoAgentClientProvider = Provider<MimoAgentClient?>((ref) {
     apiKey: llm.apiKey,
     model: model,
     voiceId: voice?.ttsVoiceId,
+    logger: ref.watch(llmLogRepositoryProvider),
+  );
+});
+
+/// Voice 路径用 —— 包装 mimo 多模态 client。
+final mimoReasonerProvider = Provider<HarnessReasoner?>((ref) {
+  final client = ref.watch(mimoAgentClientProvider);
+  if (client == null) return null;
+  return MimoReasoner(client);
+});
+
+/// Text/Image 路径用 —— 包装用户配的 LLM client。
+final openAIReasonerProvider = Provider<HarnessReasoner?>((ref) {
+  final client = ref.watch(llmClientProvider);
+  if (client == null) return null;
+  if (client is! OpenAICompatibleClient) return null;
+  return OpenAIReasoner(client);
+});
+
+/// system prompt 拼装器；orchestrator 每个 turn 调一次。
+///
+/// 异步装载 AGENT.md + profile.md，订阅 voice_config 这两个 source：
+/// 改动会自动重 build provider。
+final systemPromptBuilderProvider =
+    FutureProvider<SystemPromptBuilder>((ref) async {
+  final agentDoc = await ref.watch(agentDocProvider.future);
+  final profileText = await ref.watch(agentProfileProvider.future);
+  final family = ref.watch(profileProvider).valueOrNull;
+  final injector = ref.watch(memoryInjectorProvider);
+  final registry = ref.watch(agentToolRegistryProvider);
+  return SystemPromptBuilder(
+    agentDoc: agentDoc,
+    profileText: profileText,
+    familyProfile: family,
+    memoryInjector: injector,
+    registry: registry,
   );
 });

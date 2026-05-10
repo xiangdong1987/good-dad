@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../llm_log/llm_log_recorder.dart';
+import '../llm_log/llm_log_repository.dart';
 import 'voice_types.dart';
 
 void _alog(String msg) => debugPrint('[MimoAgent] $msg');
@@ -24,6 +26,10 @@ class MimoAgentClient {
 
   /// 模型直接合成语音用的声音 id；为空则只返回文字（orchestrator 走兜底 TTS）。
   final String? voiceId;
+
+  /// 可选日志仓库；非 null 时每次调用写一条日志到设置页可见。
+  final LlmLogRepository? logger;
+
   final Dio _dio;
 
   static const _defaultPath = '/chat/completions';
@@ -33,6 +39,7 @@ class MimoAgentClient {
     required this.apiKey,
     required this.model,
     this.voiceId,
+    this.logger,
     Dio? dio,
   }) : _dio = dio ??
             Dio(BaseOptions(
@@ -65,6 +72,16 @@ class MimoAgentClient {
 
     final url = _resolveUrl();
     _alog('POST $url model=$model audio=${audio.bytes.length}B mime=${audio.mimeType}');
+
+    final scope = LlmLogScope.start(
+      logger,
+      channel: 'mimo-agent',
+      model: model,
+      requestSummary: 'audio ${audio.bytes.length}B + system ${systemPrompt.length}c'
+          '${pageContext == null ? '' : ' + page=${pageContext.kind}'}',
+      rawRequest: _safeRawRequest(body),
+    );
+
     try {
       final resp = await _dio.post<Map<String, dynamic>>(
         url,
@@ -78,11 +95,62 @@ class MimoAgentClient {
         ),
       );
       _alog('HTTP ${resp.statusCode}, payload keys=${resp.data?.keys.toList()}');
-      return _parseResponse(resp.data);
+      final parsed = _parseResponse(resp.data);
+      scope.success(
+        responseSummary: 'tool=${parsed.toolName ?? "-"} '
+            'speak="${_truncate(parsed.speakText, 100)}"',
+        statusCode: resp.statusCode,
+        rawResponse: resp.data == null ? null : jsonEncode(resp.data),
+      );
+      return parsed;
     } on DioException catch (e) {
       _alog('DioException: code=${e.response?.statusCode} body=${_truncate(e.response?.data?.toString() ?? e.message ?? "?", 400)}');
+      scope.error(
+        message: _formatDioError(e),
+        statusCode: e.response?.statusCode,
+        rawResponse: e.response?.data?.toString(),
+      );
       throw MimoAgentException(_formatDioError(e),
           statusCode: e.response?.statusCode, cause: e);
+    } catch (e) {
+      scope.error(message: e.toString());
+      rethrow;
+    }
+  }
+
+  /// 把 audio bytes 从 body 里剥掉再 jsonEncode —— 不然日志会塞 base64 巨长。
+  String _safeRawRequest(Map<String, dynamic> body) {
+    final clone = Map<String, dynamic>.from(body);
+    try {
+      final messages = clone['messages'];
+      if (messages is List) {
+        clone['messages'] = messages.map((m) {
+          if (m is! Map) return m;
+          final mm = Map<String, dynamic>.from(m);
+          final content = mm['content'];
+          if (content is List) {
+            mm['content'] = content.map((part) {
+              if (part is Map && part['type'] == 'input_audio') {
+                final pp = Map<String, dynamic>.from(part);
+                final audio = pp['input_audio'];
+                if (audio is Map) {
+                  final aa = Map<String, dynamic>.from(audio);
+                  if (aa['data'] is String) {
+                    aa['data'] = '<${(aa['data'] as String).length}B base64 audio>';
+                  }
+                  pp['input_audio'] = aa;
+                }
+                return pp;
+              }
+              return part;
+            }).toList();
+          }
+          return mm;
+        }).toList();
+      }
+      return jsonEncode(clone);
+    } catch (_) {
+      return jsonEncode({'_': 'raw request stripped'});
     }
   }
 

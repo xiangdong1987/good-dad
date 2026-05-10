@@ -15,6 +15,7 @@ import 'features/pregnancy/pregnancy_week_page.dart';
 import 'features/pregnancy_recipe/recipe_page.dart';
 import 'features/profile_edit/profile_edit_page.dart';
 import 'features/settings/settings_page.dart';
+import 'features/settings/llm_log_page.dart';
 import 'features/skills/skill_list_page.dart';
 
 final appRouter = GoRouter(
@@ -94,6 +95,11 @@ final appRouter = GoRouter(
       path: '/italian-vocab',
       name: 'italian-vocab',
       builder: (context, state) => const ItalianVocabPage(),
+    ),
+    GoRoute(
+      path: '/llm-log',
+      name: 'llm-log',
+      builder: (context, state) => const LlmLogPage(),
     ),
   ],
   errorBuilder: (context, state) => Scaffold(
