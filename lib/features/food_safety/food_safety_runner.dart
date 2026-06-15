@@ -87,6 +87,26 @@ class FoodSafetyRunner {
     );
   }
 
+  /// 纯文本版（语音/文字 agent 用，没图片只有食物名）。
+  ///
+  /// 不存图片到 disk，imagePath 留空；其余字段用同一个 prompt 出。
+  Future<FoodSafetyResult> runText({
+    required String foodName,
+    required FamilyProfile profile,
+  }) async {
+    SkillRunResult res;
+    try {
+      res = await runner.run(
+        'food-safety',
+        text: '请判断「$foodName」孕期能不能吃。如果信息不够也请基于食物名做最佳判断。',
+        profile: profile,
+      );
+    } on SkillRunError catch (e) {
+      throw FoodSafetyError(e.message);
+    }
+    return _mapResult(res);
+  }
+
   /// 测试与 CLI 入口（沿用旧名）。
   static FoodSafetyResult parseModelOutput(String raw) =>
       FoodSafetyPrompt.parseModelOutput(raw);

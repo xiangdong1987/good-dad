@@ -7,8 +7,17 @@ import 'core/i18n/locale_provider.dart';
 import 'core/notification/weekly_notifier.dart';
 import 'core/profile/profile.dart';
 import 'core/profile/profile_repository.dart';
+import 'features/license_island/island_controller.dart';
+import 'features/license_island/island_overlay.dart';
+import 'core/voice/voice_keys.dart';
+import 'core/voice/voice_onboarding.dart';
 import 'router.dart';
 import 'ui/theme.dart';
+import 'ui/widgets/composer_button.dart';
+import 'ui/widgets/composer_sheet.dart';
+import 'ui/widgets/voice_button.dart';
+import 'ui/widgets/voice_overlay.dart';
+import 'ui/widgets/voice_tutorial_overlay.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,11 +25,30 @@ Future<void> main() async {
   runApp(const ProviderScope(child: GoodDadApp()));
 }
 
+/// 驾照灵动岛 overlay 的入口（flutter_overlay_window 按此函数名在根库查找）。
+/// 跑在独立 isolate，只画 UI。
+@pragma('vm:entry-point')
+void overlayMain() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const IslandOverlayApp());
+}
+
+bool _islandRestored = false;
+
 class GoodDadApp extends ConsumerWidget {
   const GoodDadApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 实例化驾照灵动岛主侧监听（接 overlay 的截屏请求）
+    ref.watch(islandControllerProvider);
+    if (!_islandRestored) {
+      _islandRestored = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(islandControllerProvider.notifier).restoreIfEnabled();
+      });
+    }
+
     // profile 完整时确保通知已调度
     final initial = ref.read(profileProvider).valueOrNull;
     if (initial != null && initial.isComplete) {
@@ -40,6 +68,7 @@ class GoodDadApp extends ConsumerWidget {
       title: 'GoodDad',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
+      scaffoldMessengerKey: voiceMessengerKey,
       routerConfig: appRouter,
       locale: locale.toFlutterLocale(),
       supportedLocales: AppLocale.values
@@ -50,6 +79,49 @@ class GoodDadApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+      builder: (context, child) {
+        final keyboardOpen =
+            MediaQuery.of(context).viewInsets.bottom > 0;
+        return Stack(
+          children: [
+            child ?? const SizedBox.shrink(),
+            // tutorial 在 buttons 下面：buttons 仍可点，tutorial 的 backdrop 接「别处点」dismiss
+            if (!keyboardOpen) const VoiceTutorialOverlay(),
+            if (!keyboardOpen)
+              Positioned(
+                right: 80,
+                bottom: 24,
+                child: ComposerButton(
+                  onTap: () {
+                    ref
+                        .read(voiceOnboardingProvider.notifier)
+                        .markSeen();
+                    final navCtx = appRouter
+                        .routerDelegate.navigatorKey.currentContext;
+                    if (navCtx == null) {
+                      debugPrint('[Composer] no navigator context');
+                      return;
+                    }
+                    showModalBottomSheet<void>(
+                      context: navCtx,
+                      isScrollControlled: true,
+                      useSafeArea: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => const ComposerSheet(),
+                    );
+                  },
+                ),
+              ),
+            if (!keyboardOpen)
+              const Positioned(
+                right: 16,
+                bottom: 24,
+                child: VoiceButton(),
+              ),
+            if (!keyboardOpen) const VoiceOverlay(),
+          ],
+        );
+      },
     );
   }
 }

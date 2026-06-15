@@ -72,6 +72,8 @@
 		<string>GoodDad 需要从相册选取食物或孕肚照片</string>
 		<key>NSPhotoLibraryAddUsageDescription</key>
 		<string>GoodDad 会把生成的肚肚照拼图保存到相册</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>GoodDad 用麦克风听你说话，把语音发给 AI 助手做理解和回复</string>
 		<key>UIFileSharingEnabled</key>
 		<true/>
 		<key>LSSupportsOpeningDocumentsInPlace</key>
