@@ -14,6 +14,7 @@ import '../../core/memory/memory_repository.dart';
 import '../../core/notification/weekly_notifier.dart';
 import '../voice/voice_settings_section.dart';
 import 'agent_persona_section.dart';
+import 'island_section.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -307,6 +308,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               const _SectionTitle('语音 (xiaomimimo)'),
               const SizedBox(height: 8),
               const VoiceSettingsSection(),
+              const SizedBox(height: 32),
+              const _SectionTitle('驾照灵动岛'),
+              const SizedBox(height: 8),
+              const IslandSection(),
               const SizedBox(height: 32),
               const _SectionTitle('Agent 个性'),
               const SizedBox(height: 8),

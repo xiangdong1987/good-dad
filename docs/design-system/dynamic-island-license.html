@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>good-dad · 驾照灵动岛 设计稿</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* —— 直接对应 lib/ui/theme.dart 的 AppColors —— */
+    --cream50:#FFFBF5; --cream100:#FFF4E6; --cream200:#FCEBD3; --cream300:#F8DDB8;
+    --peach200:#FFD9C7; --peach300:#FFC9B5; --peach500:#FF8F6B; --peach700:#D9684A;
+    --mint500:#7FC8A9; --sky500:#8FB8DE; --lemon500:#F5C95A; --rose500:#E07A8B;
+    --ink900:#3D2E22; --ink600:#7A6A5A; --ink400:#B5A89A;
+    --radius-sm:12px; --radius-md:18px; --radius-lg:24px; --radius-xl:32px; --pill:999px;
+    --pop:0 3px 0 0 var(--ink900);
+    --pop-sm:0 2px 0 0 var(--ink900);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:'Nunito','HarmonyOS Sans','PingFang SC',sans-serif;}
+  body{background:var(--cream200);color:var(--ink900);padding:40px 20px 80px;}
+  h1{font-size:30px;font-weight:900;text-align:center;}
+  .sub{text-align:center;color:var(--ink600);font-weight:700;margin:8px 0 36px;font-size:15px;}
+  .row{display:flex;flex-wrap:wrap;gap:36px 28px;justify-content:center;align-items:flex-start;}
+  .stage{display:flex;flex-direction:column;align-items:center;gap:14px;}
+  .caption{font-weight:800;font-size:14px;color:var(--ink900);background:var(--cream100);border:2px solid var(--ink900);border-radius:var(--pill);padding:6px 16px;box-shadow:var(--pop-sm);}
+  .caption small{display:block;font-weight:700;color:var(--ink600);font-size:11px;text-align:center;margin-top:2px;}
+
+  /* 手机外框 */
+  .phone{width:300px;height:600px;background:var(--ink900);border-radius:42px;padding:10px;box-shadow:var(--pop);position:relative;}
+  .screen{position:relative;width:100%;height:100%;border-radius:33px;overflow:hidden;background:var(--cream50);}
+  .notch{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:96px;height:22px;background:var(--ink900);border-radius:var(--pill);z-index:50;}
+
+  /* —— 模拟"别的 App"(意大利驾考刷题)做背景 —— */
+  .extapp{position:absolute;inset:0;background:#0E1726;color:#E7ECF3;padding:46px 16px 16px;}
+  .extapp .bar{display:flex;justify-content:space-between;font-size:11px;color:#7E8AA0;font-weight:700;margin-bottom:14px;}
+  .extapp .qno{font-size:11px;color:#5EC2A6;font-weight:800;letter-spacing:.5px;}
+  .extapp .qimg{width:100%;height:120px;border-radius:10px;background:linear-gradient(135deg,#1d2a3f,#243b5c);margin:10px 0;display:flex;align-items:center;justify-content:center;font-size:38px;}
+  .extapp .qtext{font-size:13px;line-height:1.5;font-weight:700;color:#D5DDEA;}
+  .extapp .vf{display:flex;gap:10px;margin-top:16px;}
+  .extapp .vf div{flex:1;text-align:center;border:1.5px solid #33425e;border-radius:8px;padding:10px;font-weight:800;font-size:14px;color:#9fb0c8;}
+
+  /* —— 灵动岛:收起态(悬浮药丸) —— */
+  .island{position:absolute;border:2px solid var(--ink900);background:var(--cream100);box-shadow:var(--pop);display:flex;align-items:center;gap:8px;z-index:40;}
+  .island.collapsed{top:120px;right:14px;border-radius:var(--pill);padding:8px 8px;}
+  .disc{width:34px;height:34px;border-radius:50%;border:2px solid var(--ink900);display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:var(--pop-sm);flex:0 0 auto;}
+  .disc.peach{background:var(--peach300);} .disc.mint{background:var(--mint500);}
+  .disc.lemon{background:var(--lemon500);} .disc.sky{background:var(--sky500);} .disc.rose{background:var(--rose500);}
+  .island .lab{font-weight:900;font-size:13px;padding-right:6px;}
+
+  /* 截屏中状态 */
+  .island.capturing{top:120px;right:14px;border-radius:var(--pill);padding:8px 14px 8px 8px;background:var(--lemon500);}
+  .spin{width:14px;height:14px;border:2.5px solid var(--ink900);border-top-color:transparent;border-radius:50%;display:inline-block;}
+
+  /* —— 悬浮结果小卡片 —— */
+  .card{position:absolute;left:12px;right:12px;bottom:14px;background:var(--cream100);border:2px solid var(--ink900);border-radius:var(--radius-lg);box-shadow:var(--pop);padding:14px;z-index:45;}
+  .card .grip{width:38px;height:5px;border-radius:var(--pill);background:var(--ink400);margin:0 auto 10px;}
+  .ans{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .ans .badge{width:46px;height:46px;border-radius:14px;border:2px solid var(--ink900);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;box-shadow:var(--pop-sm);flex:0 0 auto;}
+  .badge.ok{background:var(--mint500);} .badge.no{background:var(--rose500);color:#fff;}
+  .ans .meta{font-size:12px;font-weight:800;color:var(--ink600);}
+  .ans .meta b{display:block;color:var(--ink900);font-size:15px;}
+  .qit{font-size:12px;font-weight:700;color:var(--ink600);font-style:italic;line-height:1.4;margin-bottom:4px;}
+  .qzh{font-size:14px;font-weight:800;line-height:1.45;margin-bottom:10px;}
+  .sec{background:var(--cream50);border:2px solid var(--ink900);border-radius:var(--radius-md);padding:9px 11px;margin-bottom:9px;}
+  .sec .h{font-size:11px;font-weight:900;color:var(--peach700);letter-spacing:.4px;margin-bottom:4px;display:flex;align-items:center;gap:5px;}
+  .sec .b{font-size:12.5px;font-weight:700;line-height:1.5;color:var(--ink900);}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{font-size:11px;font-weight:800;background:var(--peach200);border:2px solid var(--ink900);border-radius:var(--pill);padding:3px 9px;box-shadow:var(--pop-sm);}
+  .chip .zh{color:var(--peach700);}
+  .actions{display:flex;gap:8px;margin-top:4px;}
+  .btn{flex:1;height:42px;border:2px solid var(--ink900);border-radius:var(--radius-md);font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:var(--pop-sm);cursor:pointer;}
+  .btn.primary{background:var(--peach500);} .btn.ghost{background:var(--cream50);}
+
+  /* —— 设置/权限引导面板 —— */
+  .setup{position:absolute;inset:0;background:var(--cream50);padding:46px 16px 16px;display:flex;flex-direction:column;}
+  .setup .hero{text-align:center;margin:10px 0 18px;}
+  .setup .hero .big{width:70px;height:70px;border-radius:50%;border:2px solid var(--ink900);background:var(--peach300);display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 10px;box-shadow:var(--pop);transform:rotate(-6deg);}
+  .setup h2{font-size:19px;font-weight:900;}
+  .setup p.lead{font-size:12.5px;font-weight:700;color:var(--ink600);margin-top:6px;line-height:1.5;}
+  .perm{display:flex;align-items:center;gap:10px;background:var(--cream100);border:2px solid var(--ink900);border-radius:var(--radius-md);padding:10px;margin-bottom:10px;box-shadow:var(--pop-sm);}
+  .perm .t{flex:1;}
+  .perm .t b{font-size:13px;font-weight:900;display:block;}
+  .perm .t span{font-size:11px;font-weight:700;color:var(--ink600);}
+  .perm .ck{font-size:18px;}
+  .setup .cta{margin-top:auto;height:56px;border:2px solid var(--ink900);border-radius:var(--radius-lg);background:var(--peach500);font-weight:900;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:var(--pop);}
+
+  .legend{max-width:900px;margin:46px auto 0;background:var(--cream100);border:2px solid var(--ink900);border-radius:var(--radius-lg);box-shadow:var(--pop);padding:20px 24px;}
+  .legend h3{font-size:16px;font-weight:900;margin-bottom:10px;}
+  .legend ul{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;}
+  .legend li{font-size:13px;font-weight:700;color:var(--ink900);line-height:1.5;}
+  .legend li b{color:var(--peach700);}
+</style>
+</head>
+<body>
+  <h1>🚗 驾照灵动岛 · 视觉稿</h1>
+  <p class="sub">一键截屏 → 喂给 italian-license skill → 悬浮小卡片秒出讲解 · 不离开当前 App</p>
+
+  <div class="row">
+
+    <!-- 1. 设置 / 权限引导 -->
+    <div class="stage">
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <div class="setup">
+          <div class="hero">
+            <div class="big">🚗</div>
+            <h2>开启驾照灵动岛</h2>
+            <p class="lead">学车刷题时点一下小岛,我帮你<br>截屏看题、给答案、讲意大利语</p>
+          </div>
+          <div class="perm">
+            <div class="disc peach">🪟</div>
+            <div class="t"><b>悬浮窗权限</b><span>让小岛浮在别的 App 上面</span></div>
+            <div class="ck">✅</div>
+          </div>
+          <div class="perm">
+            <div class="disc sky">🖼️</div>
+            <div class="t"><b>录屏 / 截屏</b><span>点一下才截,只截这一张</span></div>
+            <div class="ck">✅</div>
+          </div>
+          <div class="cta">开启小岛 →</div>
+        </div>
+      </div></div>
+      <div class="caption">① 开启与授权<small>悬浮窗 + 录屏,各授权一次</small></div>
+    </div>
+
+    <!-- 2. 收起态:悬浮在别的 App 上 -->
+    <div class="stage">
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <div class="extapp">
+          <div class="bar"><span>Quiz Patente B</span><span>12:30 · 78%🔋</span></div>
+          <div class="qno">DOMANDA 14 / 30</div>
+          <div class="qimg">🚸</div>
+          <div class="qtext">Il segnale raffigurato preannuncia un attraversamento pedonale.</div>
+          <div class="vf"><div>VERO</div><div>FALSO</div></div>
+        </div>
+        <div class="island collapsed">
+          <div class="disc peach">🚗</div>
+          <div class="lab">看这题</div>
+        </div>
+      </div></div>
+      <div class="caption">② 收起态<small>可拖动,贴边悬浮在驾考 App 上</small></div>
+    </div>
+
+    <!-- 3. 截屏中 -->
+    <div class="stage">
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <div class="extapp">
+          <div class="bar"><span>Quiz Patente B</span><span>12:30 · 78%🔋</span></div>
+          <div class="qno">DOMANDA 14 / 30</div>
+          <div class="qimg">🚸</div>
+          <div class="qtext">Il segnale raffigurato preannuncia un attraversamento pedonale.</div>
+          <div class="vf"><div>VERO</div><div>FALSO</div></div>
+        </div>
+        <div class="island capturing">
+          <div class="disc lemon"><span class="spin"></span></div>
+          <div class="lab">📸 看题中…</div>
+        </div>
+      </div></div>
+      <div class="caption">③ 截屏中<small>截图前自动隐藏小岛,不入镜</small></div>
+    </div>
+
+    <!-- 4. 悬浮结果小卡片 -->
+    <div class="stage">
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <div class="extapp" style="filter:brightness(.6);">
+          <div class="bar"><span>Quiz Patente B</span><span>12:30 · 78%🔋</span></div>
+          <div class="qno">DOMANDA 14 / 30</div>
+          <div class="qimg">🚸</div>
+          <div class="qtext">Il segnale raffigurato preannuncia un attraversamento pedonale.</div>
+        </div>
+        <div class="card">
+          <div class="grip"></div>
+          <div class="ans">
+            <div class="badge ok">V</div>
+            <div class="meta">正确答案 · 判断题<b>选 VERO（对）</b></div>
+          </div>
+          <div class="qit">Il segnale preannuncia un attraversamento pedonale.</div>
+          <div class="qzh">该标志预告前方有人行横道。</div>
+
+          <div class="sec">
+            <div class="h">💡 讲解</div>
+            <div class="b">三角红边 = 危险警告标志(segnale di pericolo)。画行人 = 提前预告人行横道,所以陈述正确。</div>
+          </div>
+
+          <div class="sec">
+            <div class="h">📚 词汇</div>
+            <div class="chips">
+              <span class="chip">attraversamento <span class="zh">横道(m.)</span></span>
+              <span class="chip">pedonale <span class="zh">行人的</span></span>
+              <span class="chip">preannunciare <span class="zh">预告</span></span>
+            </div>
+          </div>
+
+          <div class="sec">
+            <div class="h">✍️ 语法</div>
+            <div class="b">动词 raffigurato 是过去分词作定语,性数和 segnale(阳性单数)一致。</div>
+          </div>
+
+          <div class="actions">
+            <div class="btn primary">📸 再看一题</div>
+            <div class="btn ghost">收起</div>
+          </div>
+        </div>
+      </div></div>
+      <div class="caption">④ 悬浮结果小卡片<small>答案+中译+讲解+词汇+语法,可拖可收</small></div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <h3>设计说明(对齐 CLAUDE.md / cream 系统)</h3>
+    <ul>
+      <li><b>描边/阴影</b>:统一 2px ink900 实线 + 0 3px 0 ink900 落地阴影,小元素用 2px 版。</li>
+      <li><b>圆角</b>:卡片 24,小区块 18,药丸/徽章用 pill 或 14。</li>
+      <li><b>emoji=贴纸</b>:全部套在彩色圆盘(disc)里,按语义配色 — 对=mint、错=rose、提醒=lemon、信息=sky、品牌=peach。</li>
+      <li><b>答案徽章</b>:V/F 或 A/B/C/D 用大徽章,正确绿(mint)、否定红(rose),一眼看到结论。</li>
+      <li><b>结果字段</b>:严格对应 ItalianLicenseResult(question_it/zh、answer、explanation_zh、vocabulary、grammar_notes)。</li>
+      <li><b>文案 voice</b>:用「看这题/再看一题」,不写「用户/点击拍照」;一段最多 1 个感叹号。</li>
+      <li><b>截图不入镜</b>:截屏瞬间先隐藏小岛与卡片,避免把岛拍进答案图。</li>
+      <li><b>按钮 ≥ 56dp</b>:小卡片内的快捷键 42dp(悬浮态可放宽),全屏 CTA 严格 56dp。</li>
+    </ul>
+  </div>
+</body>
+</html>

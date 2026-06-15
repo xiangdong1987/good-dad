@@ -39,6 +39,9 @@ dependencies:
   image: ^4.1.7
   share_plus: ^10.1.4
 
+  # 驾照灵动岛：系统悬浮窗（药丸 + 结果卡片浮在别的 App 上）
+  flutter_overlay_window: ^0.4.5
+
   # Backup (zip 打包 + 文件选择)
   archive: ^4.0.0
   file_picker: ^8.1.4
