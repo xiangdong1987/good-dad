@@ -150,3 +150,73 @@ class ChecklistItems extends Table {
   TextColumn get photoPath => text().nullable()();
   IntColumn get sort => integer().withDefault(const Constant(0))();
 }
+
+/// 爸爸健身资料（单行，固定 id=1）。
+@DataClassName('FitnessProfileRow')
+class FitnessProfiles extends Table {
+  IntColumn get id => integer()(); // 固定 1
+  IntColumn get heightCm => integer().nullable()();
+  RealColumn get weightKg => real().nullable()();
+  IntColumn get age => integer().nullable()();
+  TextColumn get sex => text().withDefault(const Constant('male'))(); // male/female
+  /// 手边壶铃重量列表 JSON，如 "[8,12,16]"
+  TextColumn get kettlebellsKg => text().withDefault(const Constant('[]'))();
+  TextColumn get experience => text().withDefault(const Constant('novice'))(); // novice/intermediate
+  IntColumn get dailyMinutes => integer().withDefault(const Constant(20))();
+  TextColumn get goal => text().withDefault(const Constant('maintain'))(); // cut/gain/maintain
+  TextColumn get injuries => text().nullable()();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// 每日某餐的拍照记录 + AI 估算。
+@DataClassName('MealLogRow')
+class MealLogs extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get date => text()(); // yyyy-MM-dd
+  TextColumn get meal => text()(); // breakfast/lunch/dinner/snack
+  TextColumn get photoPath => text().nullable()();
+  /// 食物清单 JSON，如 [{"name":"米饭","grams":150}]
+  TextColumn get foodsJson => text().withDefault(const Constant('[]'))();
+  IntColumn get kcal => integer().withDefault(const Constant(0))();
+  IntColumn get proteinG => integer().withDefault(const Constant(0))();
+  IntColumn get carbG => integer().withDefault(const Constant(0))();
+  IntColumn get fatG => integer().withDefault(const Constant(0))();
+  BoolColumn get edited => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+/// 每日训练记录。
+@DataClassName('TrainingLogRow')
+class TrainingLogs extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get date => text()(); // yyyy-MM-dd，唯一
+  TextColumn get planJson => text().withDefault(const Constant('[]'))();
+  BoolColumn get done => boolean().withDefault(const Constant(false))();
+  TextColumn get feeling => text().nullable()();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+        {date},
+      ];
+}
+
+/// 明日计划缓存（每个目标日期一行）。
+@DataClassName('DailyPlanRow')
+class DailyPlans extends Table {
+  TextColumn get targetDate => text()(); // yyyy-MM-dd，主键
+  /// 训练动作 JSON，如 [{"move":"高脚杯深蹲","sets":3,"reps":10,"weightKg":12,"note":""}]
+  TextColumn get trainingPlanJson => text().withDefault(const Constant('[]'))();
+  TextColumn get dietGuidance => text().withDefault(const Constant(''))();
+  IntColumn get kcalTarget => integer().withDefault(const Constant(0))();
+  IntColumn get proteinTarget => integer().withDefault(const Constant(0))();
+  IntColumn get carbTarget => integer().withDefault(const Constant(0))();
+  IntColumn get fatTarget => integer().withDefault(const Constant(0))();
+  TextColumn get deficitSummary => text().withDefault(const Constant(''))();
+  DateTimeColumn get generatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {targetDate};
+}
