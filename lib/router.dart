@@ -6,6 +6,10 @@ import 'features/belly_photo/belly_photo_page.dart';
 import 'features/calendar/calendar_page.dart';
 import 'features/chat/chat_page.dart';
 import 'features/checklist/checklist_page.dart';
+import 'features/fitness/fitness_page.dart';
+import 'features/fitness/fitness_profile_page.dart';
+import 'features/fitness/meal_capture_page.dart';
+import 'features/fitness/fitness_models.dart';
 import 'features/food_safety/food_safety_page.dart';
 import 'features/home/home_page.dart';
 import 'features/memory/memory_list_page.dart';
@@ -82,6 +86,27 @@ final appRouter = GoRouter(
       path: '/shopping',
       name: 'shopping',
       builder: (context, state) => const ShoppingPage(),
+    ),
+    GoRoute(
+      path: '/fitness',
+      name: 'fitness',
+      builder: (context, state) => const FitnessPage(),
+    ),
+    GoRoute(
+      path: '/fitness/profile',
+      name: 'fitness-profile',
+      builder: (context, state) => const FitnessProfilePage(),
+    ),
+    GoRoute(
+      path: '/fitness/meal',
+      name: 'fitness-meal',
+      builder: (context, state) {
+        final args = state.extra as Map<String, dynamic>?;
+        final date = (args?['date'] as String?) ??
+            DateTime.now().toIso8601String().substring(0, 10);
+        final meal = (args?['meal'] as Meal?) ?? Meal.breakfast;
+        return MealCapturePage(date: date, meal: meal);
+      },
     ),
   ],
   errorBuilder: (context, state) => Scaffold(
