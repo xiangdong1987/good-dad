@@ -68,6 +68,7 @@ class _FitnessPageState extends ConsumerState<FitnessPage> {
         .toList());
     final training = await repo.trainingForDate(today);
 
+    if (!mounted) return;
     setState(() => _generating = true);
     try {
       final plan = await llm.generateTomorrowPlan(
@@ -125,7 +126,7 @@ class _FitnessPageState extends ConsumerState<FitnessPage> {
                           jsonEncode(data.todayPlan
                               .map((m) => m.toJson())
                               .toList()));
-                      setState(() {});
+                      if (mounted) setState(() {});
                     },
                   ),
                   const SizedBox(height: 16),

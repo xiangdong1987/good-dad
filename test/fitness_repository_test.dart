@@ -64,6 +64,26 @@ void main() {
     expect(today.length, 2);
   });
 
+  test('同一天同一餐重拍：替换而非累加', () async {
+    await repo.saveMeal(
+      date: '2026-06-16',
+      meal: Meal.lunch,
+      analysis: const MealAnalysis(kcal: 500, proteinG: 30, carbG: 60, fatG: 15),
+      photoPath: null,
+      edited: false,
+    );
+    await repo.saveMeal(
+      date: '2026-06-16',
+      meal: Meal.lunch,
+      analysis: const MealAnalysis(kcal: 700, proteinG: 40, carbG: 80, fatG: 20),
+      photoPath: null,
+      edited: true,
+    );
+    final lunches = await repo.mealsForDate('2026-06-16');
+    expect(lunches.length, 1);
+    expect(lunches.single.kcal, 700);
+  });
+
   test('daily_plan 缓存命中', () async {
     expect(await repo.planForDate('2026-06-17'), isNull);
     await repo.savePlan(

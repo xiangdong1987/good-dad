@@ -54,13 +54,17 @@ class FitnessRepository {
   }
 
   // ── meal_log ───────────────────────────────────────────────
+  /// 同一天同一餐只保留一行：重拍会替换旧记录，避免进度环重复累加。
   Future<int> saveMeal({
     required String date,
     required Meal meal,
     required MealAnalysis analysis,
     required String? photoPath,
     required bool edited,
-  }) {
+  }) async {
+    await (_db.delete(_db.mealLogs)
+          ..where((t) => t.date.equals(date) & t.meal.equals(meal.name)))
+        .go();
     return _db.into(_db.mealLogs).insert(
           MealLogsCompanion.insert(
             date: date,
