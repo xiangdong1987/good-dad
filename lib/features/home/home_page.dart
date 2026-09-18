@@ -21,6 +21,7 @@ class HomePage extends ConsumerWidget {
     _Skill('肚肚照', '🤰', '本月该拍了', AppColors.peach200, '/belly'),
     _Skill('产前准备', '📋', '待产包', AppColors.cream200, '/checklist'),
     _Skill('宝宝采购', '🛒', '分阶段不囤', AppColors.rose300, '/shopping'),
+    _Skill('壶铃打卡', '🏋️', '今天怎么练', AppColors.peach200, '/fitness'),
   ];
 
   @override

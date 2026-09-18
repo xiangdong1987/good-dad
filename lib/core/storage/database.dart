@@ -30,13 +30,18 @@ LazyDatabase _openConnection() {
   ChecklistItems,
   DailyTasks,
   WeeklyBriefs,
+  FitnessProfiles,
+  MealLogs,
+  TrainingLogs,
+  DailyPlans,
+  ActivityLogs,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
   AppDatabase.test(super.e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -51,6 +56,15 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 4) {
             await m.createTable(weeklyBriefs);
+          }
+          if (from < 5) {
+            await m.createTable(fitnessProfiles);
+            await m.createTable(mealLogs);
+            await m.createTable(trainingLogs);
+            await m.createTable(dailyPlans);
+          }
+          if (from < 6) {
+            await m.createTable(activityLogs);
           }
         },
         beforeOpen: (details) async {
