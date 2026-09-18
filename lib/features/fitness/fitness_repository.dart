@@ -171,6 +171,59 @@ class FitnessRepository {
   Future<void> deleteActivity(int id) =>
       (_db.delete(_db.activityLogs)..where((t) => t.id.equals(id))).go();
 
+  // ── weight_log ─────────────────────────────────────────────
+  /// 记一次体重。一天一条，重复称重替换旧值。
+  ///
+  /// 同时回写 profile：否则 BMR 与 MET 消耗还在用旧体重算，
+  /// 今日消耗卡会和体重卡对不上。
+  Future<void> saveWeight({
+    required String date,
+    required double weightKg,
+  }) async {
+    // 冲突目标必须显式指定 date：insertOnConflictUpdate 默认判主键 id，
+    // 撞不到 date 上的唯一约束。与 saveMeal 的「先删后插」不同，是因为
+    // meal_log 没有唯一约束，这里有，一条语句原子完成。
+    await _db.into(_db.weightLogs).insert(
+          WeightLogsCompanion.insert(date: date, weightKg: weightKg),
+          onConflict: DoUpdate(
+            (_) => WeightLogsCompanion(weightKg: Value(weightKg)),
+            target: [_db.weightLogs.date],
+          ),
+        );
+    final p = await loadProfile();
+    await saveProfile(p.copyWith(weightKg: weightKg));
+  }
+
+  Future<WeightEntry?> latestWeight() async {
+    final row = await (_db.select(_db.weightLogs)
+          ..orderBy([(t) => OrderingTerm.desc(t.date)])
+          ..limit(1))
+        .getSingleOrNull();
+    return row == null
+        ? null
+        : WeightEntry(date: row.date, weightKg: row.weightKg);
+  }
+
+  Future<WeightEntry?> weightOn(String date) async {
+    final row = await (_db.select(_db.weightLogs)
+          ..where((t) => t.date.equals(date)))
+        .getSingleOrNull();
+    return row == null
+        ? null
+        : WeightEntry(date: row.date, weightKg: row.weightKg);
+  }
+
+  /// 按日期升序，含两端。
+  Future<List<WeightEntry>> weightsBetween(String from, String to) async {
+    final rows = await (_db.select(_db.weightLogs)
+          ..where((t) => t.date.isBiggerOrEqualValue(from) & t.date.isSmallerOrEqualValue(to))
+          ..orderBy([(t) => OrderingTerm.asc(t.date)]))
+        .get();
+    return rows
+        .map((r) => WeightEntry(date: r.date, weightKg: r.weightKg))
+        .toList();
+  }
+
 }
 
 final fitnessRepositoryProvider = Provider<FitnessRepository>(

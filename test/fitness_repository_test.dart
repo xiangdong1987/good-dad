@@ -140,4 +140,55 @@ void main() {
       expect(await repo.activitiesOn('2026-09-18'), isEmpty);
     });
   });
+
+  group('weight_log', () {
+    test('同一天重复称重替换旧值，不累加成两条', () async {
+      await repo.saveWeight(date: '2026-09-18', weightKg: 92.5);
+      await repo.saveWeight(date: '2026-09-18', weightKg: 92.1);
+
+      final list = await repo.weightsBetween('2026-09-01', '2026-09-30');
+      expect(list, hasLength(1));
+      expect(list.single.weightKg, 92.1);
+    });
+
+    test('saveWeight 回写 profile，否则 BMR 还在用旧体重算', () async {
+      await repo.saveProfile(const FitnessProfile(
+        heightCm: 178,
+        weightKg: 95,
+        age: 35,
+        kettlebellsKg: [16],
+      ));
+      await repo.saveWeight(date: '2026-09-18', weightKg: 92.1);
+
+      final p = await repo.loadProfile();
+      expect(p.weightKg, 92.1);
+      // 其余资料不能被冲掉
+      expect(p.heightCm, 178);
+      expect(p.age, 35);
+      expect(p.kettlebellsKg, [16]);
+    });
+
+    test('latestWeight 取日期最新的一条，不是插入最新的', () async {
+      await repo.saveWeight(date: '2026-09-18', weightKg: 92.1);
+      await repo.saveWeight(date: '2026-09-10', weightKg: 94.0);
+
+      final latest = await repo.latestWeight();
+      expect(latest!.date, '2026-09-18');
+      expect(latest.weightKg, 92.1);
+    });
+
+    test('范围查询含两端，按日期升序', () async {
+      await repo.saveWeight(date: '2026-09-10', weightKg: 94.0);
+      await repo.saveWeight(date: '2026-09-18', weightKg: 92.1);
+      await repo.saveWeight(date: '2026-09-25', weightKg: 91.0);
+
+      final list = await repo.weightsBetween('2026-09-10', '2026-09-18');
+      expect(list.map((w) => w.date), ['2026-09-10', '2026-09-18']);
+    });
+
+    test('没有记录时 latestWeight 为 null，范围查询为空', () async {
+      expect(await repo.latestWeight(), isNull);
+      expect(await repo.weightsBetween('2026-09-01', '2026-09-30'), isEmpty);
+    });
+  });
 }
