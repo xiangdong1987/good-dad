@@ -233,3 +233,20 @@ class ActivityLogs extends Table {
   IntColumn get kcal => integer().withDefault(const Constant(0))(); // 净消耗
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
+
+/// 体重历史（每天一条）。
+///
+/// fitness_profile 是单行 upsert，改体重会覆盖旧值；减脂最该看的曲线
+/// 恰恰是它，所以单独留一张历史表。
+@DataClassName('WeightLogRow')
+class WeightLogs extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get date => text()(); // yyyy-MM-dd
+  RealColumn get weightKg => real()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+        {date},
+      ];
+}

@@ -251,3 +251,10 @@ class ActivityEntry {
     required this.kcal,
   });
 }
+
+/// 一次称重记录。
+class WeightEntry {
+  final String date;
+  final double weightKg;
+  const WeightEntry({required this.date, required this.weightKg});
+}
