@@ -168,4 +168,116 @@ void main() {
       }
     });
   });
+
+  group('bmr 输入校验', () {
+    // 真机上出现过 age=402 的脏数据：-5*402 把整个式子压到个位数，
+    // 今日消耗卡显示「基础代谢 10 大卡」。
+    test('年龄荒谬时回退兜底，不吐出个位数的基础代谢', () {
+      const p = FitnessProfile(
+        heightCm: 178,
+        weightKg: 92,
+        age: 402,
+        sex: Sex.male,
+        kettlebellsKg: [16],
+      );
+      expect(FitnessCalc.bmr(p), FitnessCalc.fallbackBmr);
+    });
+
+    test('年龄过小也回退', () {
+      const p = FitnessProfile(
+          heightCm: 178, weightKg: 92, age: 3, kettlebellsKg: [16]);
+      expect(FitnessCalc.bmr(p), FitnessCalc.fallbackBmr);
+    });
+
+    test('身高体重超出人类范围时回退', () {
+      const tall = FitnessProfile(
+          heightCm: 900, weightKg: 92, age: 35, kettlebellsKg: [16]);
+      const heavy = FitnessProfile(
+          heightCm: 178, weightKg: 900, age: 35, kettlebellsKg: [16]);
+      const light = FitnessProfile(
+          heightCm: 178, weightKg: 2, age: 35, kettlebellsKg: [16]);
+      expect(FitnessCalc.bmr(tall), FitnessCalc.fallbackBmr);
+      expect(FitnessCalc.bmr(heavy), FitnessCalc.fallbackBmr);
+      expect(FitnessCalc.bmr(light), FitnessCalc.fallbackBmr);
+    });
+
+    test('正常范围内照常按公式算', () {
+      const p = FitnessProfile(
+        heightCm: 175,
+        weightKg: 70,
+        age: 30,
+        sex: Sex.male,
+        kettlebellsKg: [16],
+      );
+      expect(FitnessCalc.bmr(p), closeTo(1648.75, 0.01));
+    });
+
+    test('边界值算作有效', () {
+      const young = FitnessProfile(
+          heightCm: 100, weightKg: 30, age: 14, kettlebellsKg: [16]);
+      const old = FitnessProfile(
+          heightCm: 250, weightKg: 300, age: 100, kettlebellsKg: [16]);
+      expect(FitnessCalc.bmr(young), isNot(FitnessCalc.fallbackBmr));
+      expect(FitnessCalc.bmr(old), isNot(FitnessCalc.fallbackBmr));
+    });
+
+    test('脏数据下热量目标也走安全默认，不给出荒谬目标', () {
+      const p = FitnessProfile(
+        heightCm: 178,
+        weightKg: 92,
+        age: 402,
+        goal: Goal.cut,
+        kettlebellsKg: [16],
+      );
+      expect(FitnessCalc.defaultTargets(p).kcal, 2000);
+    });
+
+    test('今日消耗在脏数据下不会低到离谱', () {
+      const p = FitnessProfile(
+        heightCm: 178,
+        weightKg: 92,
+        age: 402,
+        kettlebellsKg: [16],
+      );
+      final burn =
+          FitnessCalc.dayBurn(profile: p, trainingKcal: 0, activityKcal: 0);
+      expect(burn.restingKcal, greaterThan(1000));
+    });
+  });
+
+  group('bodyInputError', () {
+    test('正常数据没有错误', () {
+      expect(
+        FitnessCalc.bodyInputError(heightCm: 175, weightKg: 70, age: 30),
+        isNull,
+      );
+    });
+
+    test('年龄越界时指名道姓说是年龄', () {
+      final msg =
+          FitnessCalc.bodyInputError(heightCm: 175, weightKg: 70, age: 402);
+      expect(msg, isNotNull);
+      expect(msg, contains('年龄'));
+      expect(msg, contains('14'));
+      expect(msg, contains('100'));
+    });
+
+    test('身高越界时说身高', () {
+      final msg =
+          FitnessCalc.bodyInputError(heightCm: 17, weightKg: 70, age: 30);
+      expect(msg, contains('身高'));
+    });
+
+    test('体重越界时说体重', () {
+      final msg =
+          FitnessCalc.bodyInputError(heightCm: 175, weightKg: 700, age: 30);
+      expect(msg, contains('体重'));
+    });
+
+    test('没填的字段也拦下来，提示去填', () {
+      final msg =
+          FitnessCalc.bodyInputError(heightCm: null, weightKg: 70, age: 30);
+      expect(msg, contains('身高'));
+    });
+  });
 }

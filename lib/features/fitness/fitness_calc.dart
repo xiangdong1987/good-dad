@@ -12,22 +12,62 @@ class FitnessCalc {
   /// 资料不全时估消耗用的体重兜底。
   static const fallbackWeightKg = 70.0;
 
-  /// Mifflin-St Jeor 基础代谢，不含活动系数。资料不全则回退安全默认。
-  static double bmr(FitnessProfile p) {
+  /// 身体数据的合理范围。超出就当脏数据，不拿去算。
+  static const minHeightCm = 100, maxHeightCm = 250;
+  static const minWeightKg = 30.0, maxWeightKg = 300.0;
+  static const minAge = 14, maxAge = 100;
+
+  /// 身高体重年龄是否都齐全且在人类范围内。
+  ///
+  /// 表单历史上没做范围校验，库里可能存着 age=402 这种值：
+  /// -5*402 会把 Mifflin-St Jeor 压成个位数，基础代谢显示成 10 大卡。
+  static bool hasPlausibleBody(FitnessProfile p) {
     final h = p.heightCm, w = p.weightKg, a = p.age;
-    if (h == null || w == null || a == null) return fallbackBmr;
+    if (h == null || w == null || a == null) return false;
+    return h >= minHeightCm &&
+        h <= maxHeightCm &&
+        w >= minWeightKg &&
+        w <= maxWeightKg &&
+        a >= minAge &&
+        a <= maxAge;
+  }
+
+  /// 保存前校验身体数据，返回第一条问题文案；都合理则返回 null。
+  ///
+  /// 指名道姓说是哪个字段不对，别让爸爸自己猜。
+  static String? bodyInputError({
+    required int? heightCm,
+    required double? weightKg,
+    required int? age,
+  }) {
+    if (heightCm == null || heightCm < minHeightCm || heightCm > maxHeightCm) {
+      return '身高填 $minHeightCm–$maxHeightCm cm 之间';
+    }
+    if (weightKg == null || weightKg < minWeightKg || weightKg > maxWeightKg) {
+      return '体重填 ${minWeightKg.round()}–${maxWeightKg.round()} kg 之间';
+    }
+    if (age == null || age < minAge || age > maxAge) {
+      return '年龄填 $minAge–$maxAge 之间';
+    }
+    return null;
+  }
+
+  /// Mifflin-St Jeor 基础代谢，不含活动系数。
+  /// 资料不全或超出人类范围则回退安全默认。
+  static double bmr(FitnessProfile p) {
+    if (!hasPlausibleBody(p)) return fallbackBmr;
     final s = p.sex == Sex.male ? 5 : -161;
-    return 10 * w + 6.25 * h - 5 * a + s;
+    return 10 * p.weightKg! + 6.25 * p.heightCm! - 5 * p.age! + s;
   }
 
   /// BMR → 活动系数 1.375（轻度活动）→ 按目标增减。
   /// 资料不全则回退安全默认。
   static MacroTargets defaultTargets(FitnessProfile p) {
-    final w = p.weightKg;
-    if (p.heightCm == null || w == null || p.age == null) {
+    if (!hasPlausibleBody(p)) {
       return const MacroTargets(
           kcal: 2000, proteinG: 100, carbG: 220, fatG: 65);
     }
+    final w = p.weightKg!;
     final tdee = bmr(p) * 1.375;
     final kcal = switch (p.goal) {
       Goal.cut => tdee - 400,
