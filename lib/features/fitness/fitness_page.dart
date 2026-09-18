@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +15,8 @@ import 'fitness_models.dart';
 import 'fitness_repository.dart';
 import 'widgets/activity_sheet.dart';
 import 'widgets/burn_card.dart';
+import 'widgets/weight_card.dart';
+import 'widgets/weight_sheet.dart';
 import 'widgets/macro_ring.dart';
 
 String _isoDate(DateTime d) =>
@@ -120,6 +123,13 @@ class _FitnessPageState extends ConsumerState<FitnessPage> {
               return ListView(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
                 children: [
+                  WeightCard(
+                    today: data.todayWeight,
+                    previous: data.previousWeight,
+                    goal: data.profile.goal,
+                    onRecord: () => _recordWeight(repo, today, data),
+                  ),
+                  const SizedBox(height: 16),
                   _TrainingCard(
                     plan: data.todayPlan,
                     done: data.trainingDone,
@@ -172,6 +182,20 @@ class _FitnessPageState extends ConsumerState<FitnessPage> {
     );
   }
 
+  Future<void> _recordWeight(
+      FitnessRepository repo, String date, _TodayData data) async {
+    final kg = await showWeightSheet(
+      context,
+      initialKg: data.todayWeight?.weightKg ??
+          data.previousWeight?.weightKg ??
+          data.profile.weightKg,
+      lastKg: data.previousWeight?.weightKg,
+    );
+    if (kg == null) return;
+    await repo.saveWeight(date: date, weightKg: kg);
+    if (mounted) setState(() {});
+  }
+
   Future<void> _addActivity(
       FitnessRepository repo, String date, FitnessProfile profile) async {
     final picked = await showActivitySheet(context,
@@ -215,6 +239,16 @@ class _FitnessPageState extends ConsumerState<FitnessPage> {
           )
         : FitnessCalc.defaultTargets(profile);
 
+    // 近 60 天足够拿到今天和上一次；范围查询 P1 的趋势页还会复用。
+    final since = _isoDate(
+        DateTime.now().subtract(const Duration(days: 60)));
+    final recentWeights = await repo.weightsBetween(since, today);
+    final todayWeight = recentWeights
+        .where((w) => w.date == today)
+        .firstOrNull;
+    final previousWeight =
+        recentWeights.where((w) => w.date != today).lastOrNull;
+
     final done = training?.done ?? false;
     final weight = profile.weightKg ?? FitnessCalc.fallbackWeightKg;
     // 只有标记完成的训练才算进消耗，计划摆在那不等于练了。
@@ -231,6 +265,8 @@ class _FitnessPageState extends ConsumerState<FitnessPage> {
       targets: targets,
       tomorrowPlan: tomorrowRow,
       profile: profile,
+      todayWeight: todayWeight,
+      previousWeight: previousWeight,
       trainingMinutes: session.minutes,
       activities: activities,
       burn: FitnessCalc.dayBurn(
@@ -248,6 +284,8 @@ class _TodayData {
   final MacroTargets targets;
   final DailyPlanRow? tomorrowPlan;
   final FitnessProfile profile;
+  final WeightEntry? todayWeight;
+  final WeightEntry? previousWeight;
   final double trainingMinutes;
   final List<ActivityEntry> activities;
   final DayBurn burn;
@@ -257,6 +295,8 @@ class _TodayData {
     required this.targets,
     required this.tomorrowPlan,
     required this.profile,
+    required this.todayWeight,
+    required this.previousWeight,
     required this.trainingMinutes,
     required this.activities,
     required this.burn,
