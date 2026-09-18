@@ -9,8 +9,11 @@ import '../../ui/theme.dart';
 import '../../ui/widgets/cream_widgets.dart';
 import 'fitness_calc.dart';
 import 'fitness_llm.dart';
+import 'fitness_met.dart';
 import 'fitness_models.dart';
 import 'fitness_repository.dart';
+import 'widgets/activity_sheet.dart';
+import 'widgets/burn_card.dart';
 import 'widgets/macro_ring.dart';
 
 String _isoDate(DateTime d) =>
@@ -137,6 +140,17 @@ class _FitnessPageState extends ConsumerState<FitnessPage> {
                     onRefresh: () => setState(() {}),
                   ),
                   const SizedBox(height: 16),
+                  BurnCard(
+                    burn: data.burn,
+                    trainingMinutes: data.trainingMinutes,
+                    activities: data.activities,
+                    onAdd: () => _addActivity(repo, today, data.profile),
+                    onDelete: (id) async {
+                      await repo.deleteActivity(id);
+                      if (mounted) setState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 16),
                   _TomorrowCard(
                       plan: data.tomorrowPlan, generating: _generating),
                   const SizedBox(height: 20),
@@ -156,6 +170,25 @@ class _FitnessPageState extends ConsumerState<FitnessPage> {
         },
       ),
     );
+  }
+
+  Future<void> _addActivity(
+      FitnessRepository repo, String date, FitnessProfile profile) async {
+    final picked = await showActivitySheet(context,
+        weightKg: profile.weightKg ?? FitnessCalc.fallbackWeightKg);
+    if (picked == null) return;
+    final (kind, minutes) = picked;
+    await repo.addActivity(
+      date: date,
+      kind: kind,
+      minutes: minutes,
+      kcal: FitnessMet.netKcal(
+        kind: kind,
+        weightKg: profile.weightKg ?? FitnessCalc.fallbackWeightKg,
+        minutes: minutes.toDouble(),
+      ),
+    );
+    if (mounted) setState(() {});
   }
 
   Future<_TodayData> _loadToday(
@@ -182,11 +215,29 @@ class _FitnessPageState extends ConsumerState<FitnessPage> {
           )
         : FitnessCalc.defaultTargets(profile);
 
+    final done = training?.done ?? false;
+    final weight = profile.weightKg ?? FitnessCalc.fallbackWeightKg;
+    // 只有标记完成的训练才算进消耗，计划摆在那不等于练了。
+    final session = done
+        ? FitnessMet.sessionBurn(plan: todayPlan, weightKg: weight)
+        : BurnEstimate.zero;
+    final activities = await repo.activitiesOn(today);
+    final activityKcal =
+        activities.fold<int>(0, (sum, a) => sum + a.kcal);
+
     return _TodayData(
       todayPlan: todayPlan,
-      trainingDone: training?.done ?? false,
+      trainingDone: done,
       targets: targets,
       tomorrowPlan: tomorrowRow,
+      profile: profile,
+      trainingMinutes: session.minutes,
+      activities: activities,
+      burn: FitnessCalc.dayBurn(
+        profile: profile,
+        trainingKcal: session.kcal,
+        activityKcal: activityKcal,
+      ),
     );
   }
 }
@@ -196,11 +247,19 @@ class _TodayData {
   final bool trainingDone;
   final MacroTargets targets;
   final DailyPlanRow? tomorrowPlan;
+  final FitnessProfile profile;
+  final double trainingMinutes;
+  final List<ActivityEntry> activities;
+  final DayBurn burn;
   _TodayData({
     required this.todayPlan,
     required this.trainingDone,
     required this.targets,
     required this.tomorrowPlan,
+    required this.profile,
+    required this.trainingMinutes,
+    required this.activities,
+    required this.burn,
   });
 }
 
