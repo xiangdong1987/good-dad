@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/notification/daily_plan_notifier.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets/cream_widgets.dart';
+import 'fitness_calc.dart';
 import 'fitness_models.dart';
 import 'fitness_repository.dart';
 
@@ -74,11 +75,21 @@ class _FitnessProfilePageState extends ConsumerState<FitnessProfilePage> {
       );
       return;
     }
+    final heightCm = int.tryParse(_height.text.trim());
+    final weightKg = double.tryParse(_weight.text.trim());
+    final age = int.tryParse(_age.text.trim());
+    final err = FitnessCalc.bodyInputError(
+        heightCm: heightCm, weightKg: weightKg, age: age);
+    if (err != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(err)));
+      return;
+    }
     setState(() => _saving = true);
     final p = FitnessProfile(
-      heightCm: int.tryParse(_height.text.trim()),
-      weightKg: double.tryParse(_weight.text.trim()),
-      age: int.tryParse(_age.text.trim()),
+      heightCm: heightCm,
+      weightKg: weightKg,
+      age: age,
       sex: _sex,
       kettlebellsKg: _kbs.toList()..sort(),
       experience: _exp,
