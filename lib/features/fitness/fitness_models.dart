@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'fitness_met.dart';
+
 enum Sex {
   male,
   female;
@@ -231,4 +233,21 @@ class TomorrowPlan {
 
   String trainingPlanJson() =>
       jsonEncode(trainingPlan.map((m) => m.toJson()).toList());
+}
+
+/// 一条日常活动记录。
+class ActivityEntry {
+  final int id;
+  final ActivityKind kind;
+  final int minutes;
+
+  /// 净消耗千卡（记录时按 MET 算好后存下，改体重不会追溯改写历史）。
+  final int kcal;
+
+  const ActivityEntry({
+    required this.id,
+    required this.kind,
+    required this.minutes,
+    required this.kcal,
+  });
 }

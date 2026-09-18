@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:good_dad/core/storage/database.dart';
+import 'package:good_dad/features/fitness/fitness_met.dart';
 import 'package:good_dad/features/fitness/fitness_models.dart';
 import 'package:good_dad/features/fitness/fitness_repository.dart';
 
@@ -98,5 +99,45 @@ void main() {
     expect(row, isNotNull);
     expect(row!.kcalTarget, 1900);
     expect(row.dietGuidance, '加蛋');
+  });
+
+  group('activity_log', () {
+    test('日常活动按日期追加，同一天多条不互相覆盖', () async {
+      await repo.addActivity(
+          date: '2026-09-18', kind: ActivityKind.walk, minutes: 30, kcal: 66);
+      await repo.addActivity(
+          date: '2026-09-18', kind: ActivityKind.stairs, minutes: 5, kcal: 46);
+
+      final list = await repo.activitiesOn('2026-09-18');
+      expect(list, hasLength(2));
+      expect(list.map((a) => a.kind),
+          containsAll([ActivityKind.walk, ActivityKind.stairs]));
+      expect(list.fold<int>(0, (sum, a) => sum + a.kcal), 112);
+    });
+
+    test('只返回当天的活动', () async {
+      await repo.addActivity(
+          date: '2026-09-17', kind: ActivityKind.walk, minutes: 30, kcal: 66);
+      await repo.addActivity(
+          date: '2026-09-18', kind: ActivityKind.bike, minutes: 20, kcal: 142);
+
+      final today = await repo.activitiesOn('2026-09-18');
+      expect(today, hasLength(1));
+      expect(today.single.kind, ActivityKind.bike);
+      expect(today.single.minutes, 20);
+    });
+
+    test('删除后不再返回', () async {
+      final id = await repo.addActivity(
+          date: '2026-09-18', kind: ActivityKind.chores, minutes: 40, kcal: 53);
+      expect(await repo.activitiesOn('2026-09-18'), hasLength(1));
+
+      await repo.deleteActivity(id);
+      expect(await repo.activitiesOn('2026-09-18'), isEmpty);
+    });
+
+    test('没记录的日期返回空列表', () async {
+      expect(await repo.activitiesOn('2026-09-18'), isEmpty);
+    });
   });
 }

@@ -220,3 +220,16 @@ class DailyPlans extends Table {
   @override
   Set<Column> get primaryKey => {targetDate};
 }
+
+/// 日常活动记录（手动记：走路/跑步/骑行/爬楼/抱娃）。
+///
+/// 与三餐不同，同一天可以记多条，不做 upsert 覆盖。
+@DataClassName('ActivityLogRow')
+class ActivityLogs extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get date => text()(); // yyyy-MM-dd
+  TextColumn get kind => text()(); // ActivityKind.name
+  IntColumn get minutes => integer().withDefault(const Constant(0))();
+  IntColumn get kcal => integer().withDefault(const Constant(0))(); // 净消耗
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}

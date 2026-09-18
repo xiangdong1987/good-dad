@@ -5837,6 +5837,336 @@ class DailyPlansCompanion extends UpdateCompanion<DailyPlanRow> {
   }
 }
 
+class $ActivityLogsTable extends ActivityLogs
+    with TableInfo<$ActivityLogsTable, ActivityLogRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ActivityLogsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<String> date = GeneratedColumn<String>(
+      'date', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _minutesMeta =
+      const VerificationMeta('minutes');
+  @override
+  late final GeneratedColumn<int> minutes = GeneratedColumn<int>(
+      'minutes', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _kcalMeta = const VerificationMeta('kcal');
+  @override
+  late final GeneratedColumn<int> kcal = GeneratedColumn<int>(
+      'kcal', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, date, kind, minutes, kcal, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'activity_logs';
+  @override
+  VerificationContext validateIntegrity(Insertable<ActivityLogRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+          _dateMeta, date.isAcceptableOrUnknown(data['date']!, _dateMeta));
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('minutes')) {
+      context.handle(_minutesMeta,
+          minutes.isAcceptableOrUnknown(data['minutes']!, _minutesMeta));
+    }
+    if (data.containsKey('kcal')) {
+      context.handle(
+          _kcalMeta, kcal.isAcceptableOrUnknown(data['kcal']!, _kcalMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ActivityLogRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ActivityLogRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      date: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}date'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      minutes: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}minutes'])!,
+      kcal: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}kcal'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $ActivityLogsTable createAlias(String alias) {
+    return $ActivityLogsTable(attachedDatabase, alias);
+  }
+}
+
+class ActivityLogRow extends DataClass implements Insertable<ActivityLogRow> {
+  final int id;
+  final String date;
+  final String kind;
+  final int minutes;
+  final int kcal;
+  final DateTime createdAt;
+  const ActivityLogRow(
+      {required this.id,
+      required this.date,
+      required this.kind,
+      required this.minutes,
+      required this.kcal,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['date'] = Variable<String>(date);
+    map['kind'] = Variable<String>(kind);
+    map['minutes'] = Variable<int>(minutes);
+    map['kcal'] = Variable<int>(kcal);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  ActivityLogsCompanion toCompanion(bool nullToAbsent) {
+    return ActivityLogsCompanion(
+      id: Value(id),
+      date: Value(date),
+      kind: Value(kind),
+      minutes: Value(minutes),
+      kcal: Value(kcal),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ActivityLogRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ActivityLogRow(
+      id: serializer.fromJson<int>(json['id']),
+      date: serializer.fromJson<String>(json['date']),
+      kind: serializer.fromJson<String>(json['kind']),
+      minutes: serializer.fromJson<int>(json['minutes']),
+      kcal: serializer.fromJson<int>(json['kcal']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'date': serializer.toJson<String>(date),
+      'kind': serializer.toJson<String>(kind),
+      'minutes': serializer.toJson<int>(minutes),
+      'kcal': serializer.toJson<int>(kcal),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  ActivityLogRow copyWith(
+          {int? id,
+          String? date,
+          String? kind,
+          int? minutes,
+          int? kcal,
+          DateTime? createdAt}) =>
+      ActivityLogRow(
+        id: id ?? this.id,
+        date: date ?? this.date,
+        kind: kind ?? this.kind,
+        minutes: minutes ?? this.minutes,
+        kcal: kcal ?? this.kcal,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  ActivityLogRow copyWithCompanion(ActivityLogsCompanion data) {
+    return ActivityLogRow(
+      id: data.id.present ? data.id.value : this.id,
+      date: data.date.present ? data.date.value : this.date,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      minutes: data.minutes.present ? data.minutes.value : this.minutes,
+      kcal: data.kcal.present ? data.kcal.value : this.kcal,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ActivityLogRow(')
+          ..write('id: $id, ')
+          ..write('date: $date, ')
+          ..write('kind: $kind, ')
+          ..write('minutes: $minutes, ')
+          ..write('kcal: $kcal, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, date, kind, minutes, kcal, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ActivityLogRow &&
+          other.id == this.id &&
+          other.date == this.date &&
+          other.kind == this.kind &&
+          other.minutes == this.minutes &&
+          other.kcal == this.kcal &&
+          other.createdAt == this.createdAt);
+}
+
+class ActivityLogsCompanion extends UpdateCompanion<ActivityLogRow> {
+  final Value<int> id;
+  final Value<String> date;
+  final Value<String> kind;
+  final Value<int> minutes;
+  final Value<int> kcal;
+  final Value<DateTime> createdAt;
+  const ActivityLogsCompanion({
+    this.id = const Value.absent(),
+    this.date = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.minutes = const Value.absent(),
+    this.kcal = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  ActivityLogsCompanion.insert({
+    this.id = const Value.absent(),
+    required String date,
+    required String kind,
+    this.minutes = const Value.absent(),
+    this.kcal = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  })  : date = Value(date),
+        kind = Value(kind);
+  static Insertable<ActivityLogRow> custom({
+    Expression<int>? id,
+    Expression<String>? date,
+    Expression<String>? kind,
+    Expression<int>? minutes,
+    Expression<int>? kcal,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (date != null) 'date': date,
+      if (kind != null) 'kind': kind,
+      if (minutes != null) 'minutes': minutes,
+      if (kcal != null) 'kcal': kcal,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  ActivityLogsCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? date,
+      Value<String>? kind,
+      Value<int>? minutes,
+      Value<int>? kcal,
+      Value<DateTime>? createdAt}) {
+    return ActivityLogsCompanion(
+      id: id ?? this.id,
+      date: date ?? this.date,
+      kind: kind ?? this.kind,
+      minutes: minutes ?? this.minutes,
+      kcal: kcal ?? this.kcal,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<String>(date.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (minutes.present) {
+      map['minutes'] = Variable<int>(minutes.value);
+    }
+    if (kcal.present) {
+      map['kcal'] = Variable<int>(kcal.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ActivityLogsCompanion(')
+          ..write('id: $id, ')
+          ..write('date: $date, ')
+          ..write('kind: $kind, ')
+          ..write('minutes: $minutes, ')
+          ..write('kcal: $kcal, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5859,6 +6189,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $MealLogsTable mealLogs = $MealLogsTable(this);
   late final $TrainingLogsTable trainingLogs = $TrainingLogsTable(this);
   late final $DailyPlansTable dailyPlans = $DailyPlansTable(this);
+  late final $ActivityLogsTable activityLogs = $ActivityLogsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5878,7 +6209,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         fitnessProfiles,
         mealLogs,
         trainingLogs,
-        dailyPlans
+        dailyPlans,
+        activityLogs
       ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules(
@@ -8350,6 +8682,144 @@ class $$DailyPlansTableOrderingComposer
           ColumnOrderings(column, joinBuilders: joinBuilders));
 }
 
+typedef $$ActivityLogsTableCreateCompanionBuilder = ActivityLogsCompanion
+    Function({
+  Value<int> id,
+  required String date,
+  required String kind,
+  Value<int> minutes,
+  Value<int> kcal,
+  Value<DateTime> createdAt,
+});
+typedef $$ActivityLogsTableUpdateCompanionBuilder = ActivityLogsCompanion
+    Function({
+  Value<int> id,
+  Value<String> date,
+  Value<String> kind,
+  Value<int> minutes,
+  Value<int> kcal,
+  Value<DateTime> createdAt,
+});
+
+class $$ActivityLogsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ActivityLogsTable,
+    ActivityLogRow,
+    $$ActivityLogsTableFilterComposer,
+    $$ActivityLogsTableOrderingComposer,
+    $$ActivityLogsTableCreateCompanionBuilder,
+    $$ActivityLogsTableUpdateCompanionBuilder> {
+  $$ActivityLogsTableTableManager(_$AppDatabase db, $ActivityLogsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer:
+              $$ActivityLogsTableFilterComposer(ComposerState(db, table)),
+          orderingComposer:
+              $$ActivityLogsTableOrderingComposer(ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> date = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<int> minutes = const Value.absent(),
+            Value<int> kcal = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              ActivityLogsCompanion(
+            id: id,
+            date: date,
+            kind: kind,
+            minutes: minutes,
+            kcal: kcal,
+            createdAt: createdAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String date,
+            required String kind,
+            Value<int> minutes = const Value.absent(),
+            Value<int> kcal = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              ActivityLogsCompanion.insert(
+            id: id,
+            date: date,
+            kind: kind,
+            minutes: minutes,
+            kcal: kcal,
+            createdAt: createdAt,
+          ),
+        ));
+}
+
+class $$ActivityLogsTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $ActivityLogsTable> {
+  $$ActivityLogsTableFilterComposer(super.$state);
+  ColumnFilters<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get date => $state.composableBuilder(
+      column: $state.table.date,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get kind => $state.composableBuilder(
+      column: $state.table.kind,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get minutes => $state.composableBuilder(
+      column: $state.table.minutes,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get kcal => $state.composableBuilder(
+      column: $state.table.kcal,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+}
+
+class $$ActivityLogsTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $ActivityLogsTable> {
+  $$ActivityLogsTableOrderingComposer(super.$state);
+  ColumnOrderings<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get date => $state.composableBuilder(
+      column: $state.table.date,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get kind => $state.composableBuilder(
+      column: $state.table.kind,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get minutes => $state.composableBuilder(
+      column: $state.table.minutes,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get kcal => $state.composableBuilder(
+      column: $state.table.kcal,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get createdAt => $state.composableBuilder(
+      column: $state.table.createdAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+}
+
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
@@ -8383,4 +8853,6 @@ class $AppDatabaseManager {
       $$TrainingLogsTableTableManager(_db, _db.trainingLogs);
   $$DailyPlansTableTableManager get dailyPlans =>
       $$DailyPlansTableTableManager(_db, _db.dailyPlans);
+  $$ActivityLogsTableTableManager get activityLogs =>
+      $$ActivityLogsTableTableManager(_db, _db.activityLogs);
 }

@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/storage/database.dart';
+import 'fitness_met.dart';
 import 'fitness_models.dart';
 
 /// fitness 模块的所有 drift 读写。单行 profile + meal/training/plan。
@@ -132,6 +133,44 @@ class FitnessRepository {
           ),
         );
   }
+  // ── activity_log ───────────────────────────────────────────
+  /// 追加一条日常活动。同一天可多条，不覆盖。
+  Future<int> addActivity({
+    required String date,
+    required ActivityKind kind,
+    required int minutes,
+    required int kcal,
+  }) =>
+      _db.into(_db.activityLogs).insert(
+            ActivityLogsCompanion.insert(
+              date: date,
+              kind: kind.name,
+              minutes: Value(minutes),
+              kcal: Value(kcal),
+            ),
+          );
+
+  Future<List<ActivityEntry>> activitiesOn(String date) async {
+    final rows = await (_db.select(_db.activityLogs)
+          ..where((t) => t.date.equals(date))
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+        .get();
+    return rows
+        .map((r) => ActivityEntry(
+              id: r.id,
+              kind: ActivityKind.values.firstWhere(
+                (k) => k.name == r.kind,
+                orElse: () => ActivityKind.walk,
+              ),
+              minutes: r.minutes,
+              kcal: r.kcal,
+            ))
+        .toList();
+  }
+
+  Future<void> deleteActivity(int id) =>
+      (_db.delete(_db.activityLogs)..where((t) => t.id.equals(id))).go();
+
 }
 
 final fitnessRepositoryProvider = Provider<FitnessRepository>(
