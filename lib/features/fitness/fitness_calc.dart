@@ -32,6 +32,53 @@ class FitnessCalc {
         a <= maxAge;
   }
 
+  /// 92.0 显示成 92，92.3 保留一位。
+  static String weightText(double kg) => _trim(kg);
+
+  /// 与上次的差值文案。没变化时不说数字。
+  static String weightDeltaLabel(double deltaKg) {
+    if (deltaKg == 0) return '和上次一样';
+    final sign = deltaKg < 0 ? '−' : '+';
+    return '比上次 $sign${_trim(deltaKg.abs())} kg';
+  }
+
+  /// 变化是否朝着目标走。没变化或目标是保持时返回 null（不判好坏）。
+  static bool? isFavorableWeightChange({
+    required double deltaKg,
+    required Goal goal,
+  }) {
+    if (deltaKg == 0 || goal == Goal.maintain) return null;
+    return goal == Goal.cut ? deltaKg < 0 : deltaKg > 0;
+  }
+
+  /// 单日体重跳变阈值：超过就让用户二次确认。
+  static const maxWeightSwingKg = 5.0;
+
+  /// 体重与上次相差过大时的二次确认文案；正常波动返回 null。
+  ///
+  /// 范围校验（[minWeightKg]–[maxWeightKg]）拦不住「92 打成 9.2」这类错，
+  /// 跳变检测能。
+  static String? weightSwingWarning({
+    required double newKg,
+    required double? lastKg,
+  }) {
+    if (lastKg == null) return null;
+    final diff = newKg - lastKg;
+    if (diff.abs() <= maxWeightSwingKg) return null;
+    final verb = diff < 0 ? '少了' : '多了';
+    return '确定是 ${_trim(newKg)} kg 吗，比上次$verb ${_trim(diff.abs())} kg';
+  }
+
+  /// 92.0 显示成 92，92.3 保留一位。
+  static String _trim(double v) =>
+      v == v.roundToDouble() ? v.round().toString() : v.toStringAsFixed(1);
+
+  /// 单独校验体重，返回问题文案；合理则返回 null。
+  static String? weightInputError(double? weightKg) =>
+      (weightKg == null || weightKg < minWeightKg || weightKg > maxWeightKg)
+          ? '体重填 ${minWeightKg.round()}–${maxWeightKg.round()} kg 之间'
+          : null;
+
   /// 保存前校验身体数据，返回第一条问题文案；都合理则返回 null。
   ///
   /// 指名道姓说是哪个字段不对，别让爸爸自己猜。
@@ -43,9 +90,8 @@ class FitnessCalc {
     if (heightCm == null || heightCm < minHeightCm || heightCm > maxHeightCm) {
       return '身高填 $minHeightCm–$maxHeightCm cm 之间';
     }
-    if (weightKg == null || weightKg < minWeightKg || weightKg > maxWeightKg) {
-      return '体重填 ${minWeightKg.round()}–${maxWeightKg.round()} kg 之间';
-    }
+    final weightErr = weightInputError(weightKg);
+    if (weightErr != null) return weightErr;
     if (age == null || age < minAge || age > maxAge) {
       return '年龄填 $minAge–$maxAge 之间';
     }

@@ -280,4 +280,61 @@ void main() {
       expect(msg, contains('身高'));
     });
   });
+
+  group('weightSwingWarning', () {
+    test('正常波动不打扰', () {
+      expect(
+        FitnessCalc.weightSwingWarning(newKg: 92.3, lastKg: 92.7),
+        isNull,
+      );
+    });
+
+    test('骤降超过阈值时二次确认，说清差了多少', () {
+      final msg = FitnessCalc.weightSwingWarning(newKg: 82, lastKg: 92);
+      expect(msg, isNotNull);
+      expect(msg, contains('82'));
+      expect(msg, contains('少了'));
+      expect(msg, contains('10'));
+    });
+
+    test('骤增超过阈值也确认', () {
+      final msg = FitnessCalc.weightSwingWarning(newKg: 99, lastKg: 92);
+      expect(msg, contains('多了'));
+      expect(msg, contains('7'));
+    });
+
+    test('第一次称重没有对比基准，不警告', () {
+      expect(FitnessCalc.weightSwingWarning(newKg: 92, lastKg: null), isNull);
+    });
+
+    test('正好等于阈值不算跳变', () {
+      expect(
+        FitnessCalc.weightSwingWarning(
+            newKg: 92, lastKg: 92 + FitnessCalc.maxWeightSwingKg),
+        isNull,
+      );
+    });
+
+    test('小数点打错这类错误能被拦住', () {
+      // 92 打成 9.2：范围校验（30-300）拦不住，跳变校验能
+      expect(FitnessCalc.weightSwingWarning(newKg: 9.2, lastKg: 92), isNotNull);
+    });
+  });
+
+  group('weightInputError', () {
+    test('正常体重没有错误', () {
+      expect(FitnessCalc.weightInputError(92.3), isNull);
+    });
+
+    test('超出范围时提示体重区间', () {
+      expect(FitnessCalc.weightInputError(900), contains('体重'));
+      expect(FitnessCalc.weightInputError(2), contains('体重'));
+      expect(FitnessCalc.weightInputError(null), contains('体重'));
+    });
+
+    test('边界值算有效', () {
+      expect(FitnessCalc.weightInputError(FitnessCalc.minWeightKg), isNull);
+      expect(FitnessCalc.weightInputError(FitnessCalc.maxWeightKg), isNull);
+    });
+  });
 }
