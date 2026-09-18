@@ -68,4 +68,104 @@ void main() {
       );
     });
   });
+
+  group('bmr', () {
+    test('Mifflin-St Jeor 男性公式，不含活动系数', () {
+      const p = FitnessProfile(
+        heightCm: 175,
+        weightKg: 70,
+        age: 30,
+        sex: Sex.male,
+        kettlebellsKg: [16],
+      );
+      // 10*70 + 6.25*175 - 5*30 + 5 = 1648.75
+      expect(FitnessCalc.bmr(p), closeTo(1648.75, 0.01));
+    });
+
+    test('女性公式常数项为 -161', () {
+      const male = FitnessProfile(
+          heightCm: 170, weightKg: 60, age: 30, sex: Sex.male);
+      const female = FitnessProfile(
+          heightCm: 170, weightKg: 60, age: 30, sex: Sex.female);
+      expect(FitnessCalc.bmr(male) - FitnessCalc.bmr(female), closeTo(166, 0.01));
+    });
+
+    test('资料不全时回退到安全默认值', () {
+      expect(FitnessCalc.bmr(FitnessProfile.empty), FitnessCalc.fallbackBmr);
+    });
+  });
+
+  group('dayBurn', () {
+    test('今日消耗 = 全天基础代谢 + 训练 + 日常活动', () {
+      const p = FitnessProfile(
+        heightCm: 175,
+        weightKg: 70,
+        age: 30,
+        sex: Sex.male,
+        kettlebellsKg: [16],
+      );
+      final burn = FitnessCalc.dayBurn(
+        profile: p,
+        trainingKcal: 113,
+        activityKcal: 60,
+      );
+      expect(burn.restingKcal, 1649); // BMR 取整
+      expect(burn.trainingKcal, 113);
+      expect(burn.activityKcal, 60);
+      expect(burn.total, 1649 + 113 + 60);
+    });
+
+    test('没练也没活动时只剩基础代谢', () {
+      const p = FitnessProfile(
+        heightCm: 175,
+        weightKg: 70,
+        age: 30,
+        sex: Sex.male,
+        kettlebellsKg: [16],
+      );
+      final burn =
+          FitnessCalc.dayBurn(profile: p, trainingKcal: 0, activityKcal: 0);
+      expect(burn.trainingKcal, 0);
+      expect(burn.total, burn.restingKcal);
+    });
+
+    test('主动消耗只算训练与日常，不含基础代谢', () {
+      const p = FitnessProfile(
+        heightCm: 175,
+        weightKg: 70,
+        age: 30,
+        sex: Sex.male,
+        kettlebellsKg: [16],
+      );
+      final burn = FitnessCalc.dayBurn(
+        profile: p,
+        trainingKcal: 113,
+        activityKcal: 60,
+      );
+      expect(burn.activeKcal, 173);
+    });
+  });
+
+  group('burnCompareText', () {
+    test('把主动消耗换算成米饭碗数，让数字有体感', () {
+      // 173 / 230 ≈ 0.8 碗
+      expect(FitnessCalc.burnCompareText(173), contains('0.8 碗米饭'));
+      expect(FitnessCalc.burnCompareText(173), contains('170 大卡'));
+    });
+
+    test('没动的时候给鼓励而不是 0 大卡', () {
+      final text = FitnessCalc.burnCompareText(0);
+      expect(text, isNot(contains('0 大卡')));
+      expect(text, contains('还没动'));
+    });
+
+    test('文案最多一个感叹号', () {
+      for (final kcal in [0, 50, 173, 600]) {
+        expect('!'.allMatches(FitnessCalc.burnCompareText(kcal)).length,
+            lessThanOrEqualTo(1));
+        expect('！'.allMatches(FitnessCalc.burnCompareText(kcal)).length,
+            lessThanOrEqualTo(1));
+      }
+    });
+  });
 }
