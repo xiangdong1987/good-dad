@@ -34,6 +34,21 @@ class FitnessLlm {
     return FitnessPrompt.parseMeal(res.text);
   }
 
+  /// 文字描述记一餐。走非 vision 通道——没有图片还按 vision 计费是白花钱。
+  Future<MealAnalysis> analyzeMealText({
+    required Meal meal,
+    required String description,
+  }) async {
+    final messages = FitnessPrompt.buildMealTextMessages(meal, description);
+    final LlmResult res;
+    try {
+      res = await client.chatOnce(messages, temperature: 0.3);
+    } on LlmException catch (e) {
+      throw FitnessLlmError('AI 分析失败：${e.message}');
+    }
+    return FitnessPrompt.parseMeal(res.text);
+  }
+
   Future<TomorrowPlan> generateTomorrowPlan({
     required FitnessProfile profile,
     required DayTotals totals,

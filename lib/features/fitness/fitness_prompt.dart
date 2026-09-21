@@ -19,15 +19,23 @@ class FitnessPrompt {
   }
 
   // ── 拍照分析 ────────────────────────────────────────────────
-  static String mealSystemPrompt(Meal meal) => '''
-你是爸爸的私人营养助手。用户拍了一张【${meal.zh}】的照片。
-请识别盘中食物并估算整餐的热量与三大营养素。
+  static String mealSystemPrompt(Meal meal, {required bool byPhoto}) => '''
+你是爸爸的私人营养助手。${byPhoto ? '用户拍了一张【${meal.zh}】的照片，请识别盘中食物' : '用户用一句话描述了自己的【${meal.zh}】，请拆解出食物清单'}并估算热量与三大营养素。
 严格只输出 JSON，不要 markdown 围栏、不要解释，字段：
-{"foods":[{"name":"食物名","grams":整数克重}],"kcal":整数,"proteinG":整数,"carbG":整数,"fatG":整数,"note":"一句简短点评"}
-估算保守，看不清就给区间中值。note 用中文，最多一句话，最多一个感叹号。''';
+{"foods":[{"name":"食物名","grams":整数克重,"kcal":整数,"proteinG":整数,"carbG":整数,"fatG":整数}],"kcal":整数,"proteinG":整数,"carbG":整数,"fatG":整数,"note":"一句简短点评"}
+**每一样食物都必须带上自己的 kcal 与三大营养素**，整餐字段是它们的合计。
+估算保守，${byPhoto ? '看不清' : '说不清'}就给区间中值。note 用中文，最多一句话，最多一个感叹号。''';
+
+  /// 文字描述记餐：不带图片部件，走非 vision 通道。
+  static List<LlmMessage> buildMealTextMessages(
+          Meal meal, String description) =>
+      [
+        LlmMessage.system(mealSystemPrompt(meal, byPhoto: false)),
+        LlmMessage.user(description),
+      ];
 
   static List<LlmMessage> buildMealMessages(Meal meal, Uint8List bytes) => [
-        LlmMessage.system(mealSystemPrompt(meal)),
+        LlmMessage.system(mealSystemPrompt(meal, byPhoto: true)),
         LlmMessage(LlmRole.user, [
           ImagePart(bytes),
           TextPart('这一餐大概多少热量和营养？'),
