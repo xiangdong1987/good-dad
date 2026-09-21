@@ -194,22 +194,34 @@ class TrainingMove {
   final int reps;
   final int weightKg;
   final String note;
+
+  /// LLM 标注的动作类型；null 时由关键词兜底判定。
+  final ActivityKind? kind;
+
   const TrainingMove({
     required this.move,
     required this.sets,
     required this.reps,
     required this.weightKg,
     this.note = '',
+    this.kind,
   });
 
-  Map<String, dynamic> toJson() =>
-      {'move': move, 'sets': sets, 'reps': reps, 'weightKg': weightKg, 'note': note};
+  Map<String, dynamic> toJson() => {
+        'move': move,
+        'sets': sets,
+        'reps': reps,
+        'weightKg': weightKg,
+        'note': note,
+        if (kind != null) 'kind': kind!.name,
+      };
   factory TrainingMove.fromJson(Map<String, dynamic> j) => TrainingMove(
         move: (j['move'] ?? '').toString(),
         sets: (j['sets'] as num?)?.round() ?? 0,
         reps: (j['reps'] as num?)?.round() ?? 0,
         weightKg: (j['weightKg'] as num?)?.round() ?? 0,
         note: (j['note'] ?? '').toString(),
+        kind: ActivityKind.parse(j['kind']?.toString()),
       );
 }
 

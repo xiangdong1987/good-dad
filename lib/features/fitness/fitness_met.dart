@@ -53,6 +53,26 @@ enum ActivityKind {
 
   /// 需要爸爸手动记的项目。壶铃那几项由训练计划自动算，不在这里重复记。
   static const manual = [walk, run, bike, stairs, chores];
+
+  /// 训练计划里可能出现的类型，用于 prompt 里给 LLM 的枚举。
+  static const training = [
+    kbBallistic,
+    kbSnatch,
+    kbStrength,
+    kbTgu,
+    core,
+    warmup,
+  ];
+
+  /// 解析 LLM 标注的类型；认不出返回 null，交给关键词兜底。
+  static ActivityKind? parse(String? s) {
+    final k = s?.trim().toLowerCase();
+    if (k == null || k.isEmpty) return null;
+    for (final v in values) {
+      if (v.name.toLowerCase() == k) return v;
+    }
+    return null;
+  }
 }
 
 class FitnessMet {
@@ -81,11 +101,15 @@ class FitnessMet {
     final s = moveName.toLowerCase();
     bool has(List<String> kws) => kws.any(s.contains);
 
-    if (has(['swing', '摆荡', '甩壶', '荡壶'])) return ActivityKind.kbBallistic;
-    if (has(['snatch', 'clean', '抓举', '高翻', '上膊'])) {
+    if (has(['swing', '摆荡', '摆动', '甩壶', '荡壶'])) {
+      return ActivityKind.kbBallistic;
+    }
+    if (has(['snatch', 'clean', 'jerk', '抓举', '挺举', '高翻', '上膊'])) {
       return ActivityKind.kbSnatch;
     }
-    if (has(['tgu', 'turkish', '土耳其', '起立'])) return ActivityKind.kbTgu;
+    if (has(['tgu', 'turkish', '土耳其', '起立', '起身'])) {
+      return ActivityKind.kbTgu;
+    }
     if (has(['plank', '平板', '支撑', '臀桥', '卷腹', '核心', '死虫'])) {
       return ActivityKind.core;
     }
@@ -104,13 +128,20 @@ class FitnessMet {
     ActivityKind.warmup: (1, 15),
   };
 
+  /// 动作类型：优先用 LLM 标注的 kind，没有才靠中文关键词猜。
+  ///
+  /// 关键词表是照着自己的词汇写的，LLM 换个说法就会落空——真机上
+  /// 「壶铃摆动」就因为表里只有「摆荡」被归成了力量类。
+  static ActivityKind kindOf(TrainingMove move) =>
+      move.kind ?? classify(move.move);
+
   /// 从 sets/reps 反推训练时长（分钟）。
   ///
   /// `TrainingMove` 里没有时长字段，让爸爸练完再填分钟数会增加摩擦，
   /// 所以按动作类型的常见节奏估。结果可在 UI 上手改。
   static double estimateMinutes(TrainingMove move) {
     if (move.sets <= 0 || move.reps <= 0) return 0;
-    final (secPerRep, restSec) = _tempo[classify(move.move)] ?? (3, 60);
+    final (secPerRep, restSec) = _tempo[kindOf(move)] ?? (3, 60);
     final seconds = move.sets * move.reps * secPerRep + (move.sets - 1) * restSec;
     return seconds / 60;
   }
@@ -124,7 +155,7 @@ class FitnessMet {
     for (final move in plan) {
       final m = estimateMinutes(move);
       minutes += m;
-      kcal += _netKcal(classify(move.move), weightKg, m);
+      kcal += _netKcal(kindOf(move), weightKg, m);
     }
     return BurnEstimate(minutes: minutes, kcal: kcal.round());
   }

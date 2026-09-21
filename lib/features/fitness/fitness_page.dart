@@ -32,7 +32,8 @@ class FitnessPage extends ConsumerStatefulWidget {
 
 class _FitnessPageState extends ConsumerState<FitnessPage> {
   bool _checkedProfile = false;
-  bool _generating = false;
+  /// 正在生成的目标日期；null 表示没在生成。
+  String? _generatingFor;
 
   @override
   void initState() {
@@ -54,11 +55,14 @@ class _FitnessPageState extends ConsumerState<FitnessPage> {
 
   Future<void> _maybeGeneratePlan() async {
     if (!mounted) return;
-    setState(() => _generating = true);
     // 编排搬到 FitnessPlanService：App 启动与恢复前台时也会调，
     // 这里只负责转菊花和刷新。
-    await ref.read(fitnessPlanServiceProvider).ensurePlan();
-    if (mounted) setState(() => _generating = false);
+    await ref.read(fitnessPlanServiceProvider).ensurePlan(
+          onStart: (target) {
+            if (mounted) setState(() => _generatingFor = target);
+          },
+        );
+    if (mounted) setState(() => _generatingFor = null);
   }
 
   @override
@@ -105,6 +109,7 @@ class _FitnessPageState extends ConsumerState<FitnessPage> {
                   _TrainingCard(
                     plan: data.todayPlan,
                     done: data.trainingDone,
+                    generating: _generatingFor == today,
                     onDone: () async {
                       await repo.markTrainingDone(
                           today,
@@ -134,7 +139,10 @@ class _FitnessPageState extends ConsumerState<FitnessPage> {
                   ),
                   const SizedBox(height: 16),
                   _TomorrowCard(
-                      plan: data.tomorrowPlan, generating: _generating),
+                    plan: data.tomorrowPlan,
+                    generating: _generatingFor == _isoDate(
+                        DateTime.now().add(const Duration(days: 1))),
+                  ),
                   const SizedBox(height: 20),
                   const Text(
                     '这是 AI 给的训练参考，身体不舒服就停，必要时问专业教练/医生 🩺',
@@ -278,9 +286,16 @@ class _TodayData {
 class _TrainingCard extends StatelessWidget {
   final List<TrainingMove> plan;
   final bool done;
+
+  /// 正在补今天的计划（用昨天的数据），菊花转在这张卡上。
+  final bool generating;
   final VoidCallback onDone;
-  const _TrainingCard(
-      {required this.plan, required this.done, required this.onDone});
+  const _TrainingCard({
+    required this.plan,
+    required this.done,
+    required this.generating,
+    required this.onDone,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -301,8 +316,24 @@ class _TrainingCard extends StatelessWidget {
             if (done) const StatusTag(kind: SafetyTag.ok, label: '已完成'),
           ]),
           const SizedBox(height: 12),
-          if (plan.isEmpty)
-            const Text('今天还没有训练计划——晚上我会根据今天的情况生成明天的。',
+          if (plan.isEmpty && generating)
+            const Row(children: [
+              SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2)),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text('我正在根据昨天的情况，补今天的计划…',
+                    style: TextStyle(
+                        fontFamily: 'Nunito',
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: AppColors.ink600)),
+              ),
+            ])
+          else if (plan.isEmpty)
+            const Text('今天还没有训练计划——打开 App 我就会补上。',
                 style: TextStyle(
                     fontFamily: 'Nunito',
                     fontWeight: FontWeight.w600,

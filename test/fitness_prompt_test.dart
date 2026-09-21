@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:good_dad/core/llm/types.dart';
+import 'package:good_dad/features/fitness/fitness_met.dart';
 import 'package:good_dad/features/fitness/fitness_models.dart';
 import 'package:good_dad/features/fitness/fitness_prompt.dart';
 
@@ -80,6 +82,48 @@ void main() {
       expect(s, contains('12')); // 可用壶铃重量
       expect(s, contains('16'));
       expect(s.toLowerCase(), contains('json'));
+    });
+  });
+
+  group('训练动作类型标注', () {
+    test('prompt 里列出所有可选类型，让 LLM 直接标而不是我们猜词', () {
+      final msgs = FitnessPrompt.buildPlanMessages(
+        profile: const FitnessProfile(
+            heightCm: 178, weightKg: 94, age: 35, kettlebellsKg: [20]),
+        totals: const DayTotals(kcal: 1800),
+        trainingDone: false,
+      );
+      final text = msgs
+          .expand((m) => m.parts)
+          .whereType<TextPart>()
+          .map((p) => p.text)
+          .join('\n');
+      expect(text, contains('kind'));
+      for (final k in ActivityKind.training) {
+        expect(text, contains(k.name), reason: '\${k.name} 没出现在 prompt 里');
+      }
+    });
+
+    test('parsePlan 读出 LLM 标注的 kind', () {
+      const raw =
+          '{"trainingPlan":[{"move":"壶铃摆动","sets":3,"reps":15,'
+          '"weightKg":20,"note":"髋部发力","kind":"kbBallistic"}],'
+          '"dietGuidance":"多吃蛋白","kcalTarget":2000,"proteinTarget":150,'
+          '"carbTarget":200,"fatTarget":67,"deficitSummary":"今天欠了点"}';
+      final plan = FitnessPrompt.parsePlan(raw);
+      expect(plan.trainingPlan.single.kind, ActivityKind.kbBallistic);
+    });
+
+    test('LLM 没给 kind 时留空，由关键词兜底', () {
+      const raw =
+          '{"trainingPlan":[{"move":"壶铃摆动","sets":3,"reps":15,'
+          '"weightKg":20}],"dietGuidance":"","kcalTarget":2000,'
+          '"proteinTarget":150,"carbTarget":200,"fatTarget":67,'
+          '"deficitSummary":""}';
+      final plan = FitnessPrompt.parsePlan(raw);
+      expect(plan.trainingPlan.single.kind, isNull);
+      expect(FitnessMet.kindOf(plan.trainingPlan.single),
+          ActivityKind.kbBallistic);
     });
   });
 }

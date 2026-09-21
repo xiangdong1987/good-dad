@@ -164,4 +164,71 @@ void main() {
     await svc.ensurePlan(now: DateTime(2026, 9, 21, 8));
     expect(seen, isTrue);
   });
+
+  group('onStart 回调', () {
+    test('开始生成前就报出目标日期，页面据此决定菊花转在哪张卡', () async {
+      await repo.saveProfile(_profile);
+      final started = <String>[];
+      final svc = FitnessPlanService(
+        repo: repo,
+        generate: ({required profile, required totals, required trainingDone}) async {
+          // 回调必须发生在真正调 LLM 之前
+          expect(started, ['2026-09-21']);
+          return _plan;
+        },
+      );
+
+      await svc.ensurePlan(
+          now: DateTime(2026, 9, 21, 8), onStart: started.add);
+
+      expect(started, ['2026-09-21']);
+    });
+
+    test('补明天时报的是明天', () async {
+      await repo.saveProfile(_profile);
+      await repo.savePlan('2026-09-21', _plan);
+      final started = <String>[];
+      final svc = FitnessPlanService(
+        repo: repo,
+        generate: ({required profile, required totals, required trainingDone}) async =>
+            _plan,
+      );
+
+      await svc.ensurePlan(
+          now: DateTime(2026, 9, 21, 21), onStart: started.add);
+
+      expect(started, ['2026-09-22']);
+    });
+
+    test('不需要生成时不回调', () async {
+      await repo.saveProfile(_profile);
+      await repo.savePlan('2026-09-21', _plan);
+      await repo.savePlan('2026-09-22', _plan);
+      final started = <String>[];
+      final svc = FitnessPlanService(
+        repo: repo,
+        generate: ({required profile, required totals, required trainingDone}) async =>
+            _plan,
+      );
+
+      await svc.ensurePlan(
+          now: DateTime(2026, 9, 21, 23), onStart: started.add);
+
+      expect(started, isEmpty);
+    });
+
+    test('资料不全时也不回调，别让页面空转菊花', () async {
+      final started = <String>[];
+      final svc = FitnessPlanService(
+        repo: repo,
+        generate: ({required profile, required totals, required trainingDone}) async =>
+            _plan,
+      );
+
+      await svc.ensurePlan(
+          now: DateTime(2026, 9, 21, 8), onStart: started.add);
+
+      expect(started, isEmpty);
+    });
+  });
 }
