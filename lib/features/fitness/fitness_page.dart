@@ -80,6 +80,13 @@ class _FitnessPageState extends ConsumerState<FitnessPage> {
         title: const Text('壶铃 · 今日'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.history_rounded),
+            onPressed: () async {
+              await context.push('/fitness/history');
+              if (mounted) setState(() {});
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.tune_rounded),
             onPressed: () => context.push('/fitness/profile'),
           ),
