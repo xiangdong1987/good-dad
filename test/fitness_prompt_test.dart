@@ -57,7 +57,7 @@ void main() {
 
   group('mealSystemPrompt', () {
     test('包含严格 JSON 指令与餐次', () {
-      final s = FitnessPrompt.mealSystemPrompt(Meal.lunch);
+      final s = FitnessPrompt.mealSystemPrompt(Meal.lunch, byPhoto: true);
       expect(s, contains('JSON'));
       expect(s, contains('午餐'));
     });
@@ -124,6 +124,50 @@ void main() {
       expect(plan.trainingPlan.single.kind, isNull);
       expect(FitnessMet.kindOf(plan.trainingPlan.single),
           ActivityKind.kbBallistic);
+    });
+  });
+
+  group('记餐 prompt', () {
+    test('要求每样食物都带上自己的热量与宏量', () {
+      final p = FitnessPrompt.mealSystemPrompt(Meal.lunch, byPhoto: true);
+      expect(p, contains('kcal'));
+      expect(p, contains('proteinG'));
+      // 明细里要有，不能只在整餐层面要
+      final foodsPart = p.substring(p.indexOf('"foods"'));
+      expect(foodsPart.substring(0, foodsPart.indexOf(']')), contains('kcal'));
+    });
+
+    test('文字输入时措辞不提照片', () {
+      final byText = FitnessPrompt.mealSystemPrompt(Meal.lunch, byPhoto: false);
+      expect(byText, isNot(contains('照片')));
+      expect(byText, contains('午餐'));
+    });
+
+    test('拍照时措辞提照片', () {
+      final byPhoto = FitnessPrompt.mealSystemPrompt(Meal.lunch, byPhoto: true);
+      expect(byPhoto, contains('照片'));
+    });
+
+    test('文字消息里不含图片部件', () {
+      final msgs = FitnessPrompt.buildMealTextMessages(Meal.dinner, '两个饺子一碗粥');
+      expect(msgs.expand((m) => m.parts).whereType<ImagePart>(), isEmpty);
+      final text = msgs
+          .expand((m) => m.parts)
+          .whereType<TextPart>()
+          .map((p) => p.text)
+          .join('\n');
+      expect(text, contains('两个饺子一碗粥'));
+    });
+
+    test('parseMeal 读出每样食物的热量', () {
+      const raw =
+          '{"foods":[{"name":"米饭","grams":150,"kcal":174,"proteinG":4,'
+          '"carbG":39,"fatG":0}],"kcal":174,"proteinG":4,"carbG":39,'
+          '"fatG":0,"note":"还行"}';
+      final a = FitnessPrompt.parseMeal(raw);
+      expect(a.foods.single.kcal, 174);
+      expect(a.hasItemDetail, isTrue);
+      expect(a.totalKcal, 174);
     });
   });
 }

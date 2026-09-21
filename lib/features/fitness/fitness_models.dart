@@ -125,12 +125,60 @@ class FitnessProfile {
 class FoodItem {
   final String name;
   final int grams;
-  const FoodItem(this.name, this.grams);
 
-  Map<String, dynamic> toJson() => {'name': name, 'grams': grams};
+  /// 这一样食物自己的热量与宏量。
+  ///
+  /// 整餐层面的数字删不掉也缩放不了——要支持编辑清单，明细必须带数值。
+  /// LLM 没给时为 0，此时整餐退回用 LLM 给的整餐值。
+  final int kcal;
+  final int proteinG;
+  final int carbG;
+  final int fatG;
+
+  const FoodItem(
+    this.name,
+    this.grams, {
+    this.kcal = 0,
+    this.proteinG = 0,
+    this.carbG = 0,
+    this.fatG = 0,
+  });
+
+  /// 改分量：按克数线性缩放。
+  ///
+  /// 对「一整只鸡 vs 半只鸡」这类非线性情况不精确，但日常分量够用。
+  /// 原克数为 0 时无从推算，数值原样保留。
+  FoodItem scaledTo(int newGrams) {
+    if (grams <= 0) {
+      return FoodItem(name, newGrams,
+          kcal: kcal, proteinG: proteinG, carbG: carbG, fatG: fatG);
+    }
+    final r = newGrams / grams;
+    return FoodItem(
+      name,
+      newGrams,
+      kcal: (kcal * r).round(),
+      proteinG: (proteinG * r).round(),
+      carbG: (carbG * r).round(),
+      fatG: (fatG * r).round(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'grams': grams,
+        'kcal': kcal,
+        'proteinG': proteinG,
+        'carbG': carbG,
+        'fatG': fatG,
+      };
   factory FoodItem.fromJson(Map<String, dynamic> j) => FoodItem(
         (j['name'] ?? '').toString(),
         (j['grams'] as num?)?.round() ?? 0,
+        kcal: (j['kcal'] as num?)?.round() ?? 0,
+        proteinG: (j['proteinG'] as num?)?.round() ?? 0,
+        carbG: (j['carbG'] as num?)?.round() ?? 0,
+        fatG: (j['fatG'] as num?)?.round() ?? 0,
       );
 }
 
@@ -157,6 +205,35 @@ class MealAnalysis {
   });
 
   String foodsJson() => jsonEncode(foods.map((f) => f.toJson()).toList());
+
+  /// 明细是否齐全到可以逐项编辑：每一样都带了热量。
+  ///
+  /// 只要有一样缺，就整体退回 LLM 给的整餐值——半信半疑地混用两套
+  /// 数字，编辑时会算出明显错的总和。
+  bool get hasItemDetail =>
+      foods.isNotEmpty && foods.every((f) => f.kcal > 0);
+
+  int _sum(int Function(FoodItem) pick, int fallback) =>
+      hasItemDetail ? foods.fold(0, (a, f) => a + pick(f)) : fallback;
+
+  int get totalKcal => _sum((f) => f.kcal, kcal);
+  int get totalProteinG => _sum((f) => f.proteinG, proteinG);
+  int get totalCarbG => _sum((f) => f.carbG, carbG);
+  int get totalFatG => _sum((f) => f.fatG, fatG);
+
+  /// 编辑清单后重建：整餐数字由新的明细之和决定。
+  MealAnalysis withFoods(List<FoodItem> next) {
+    final t = MealAnalysis(foods: next, note: note, rawText: rawText);
+    return MealAnalysis(
+      foods: next,
+      kcal: t._sum((f) => f.kcal, 0),
+      proteinG: t._sum((f) => f.proteinG, 0),
+      carbG: t._sum((f) => f.carbG, 0),
+      fatG: t._sum((f) => f.fatG, 0),
+      note: note,
+      rawText: rawText,
+    );
+  }
 }
 
 /// 一日三餐合计。
