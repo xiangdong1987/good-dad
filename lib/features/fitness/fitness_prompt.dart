@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 
 import '../../core/llm/types.dart';
+import 'fitness_met.dart';
 import 'fitness_models.dart';
 
 /// 纯 Dart：图片压缩、prompt 拼装、宽容 JSON 解析。无 Flutter/Riverpod/drift 依赖。
@@ -88,9 +89,11 @@ class FitnessPrompt {
 - 你是 AI，不替代医生/教练。
 
 严格只输出 JSON，不要 markdown 围栏、不要解释，字段：
-{"trainingPlan":[{"move":"动作名","sets":整数,"reps":整数,"weightKg":整数,"note":"要点"}],
+{"trainingPlan":[{"move":"动作名","kind":"动作类型","sets":整数,"reps":整数,"weightKg":整数,"note":"要点"}],
 "dietGuidance":"明日饮食建议，中文，结合今日缺口","kcalTarget":整数,"proteinTarget":整数,
 "carbTarget":整数,"fatTarget":整数,"deficitSummary":"今天缺口一句话总结"}
+kind 必须从这些里选一个（照抄英文标识，别自创）：
+${ActivityKind.training.map((k) => '${k.name}（${k.zh}）').join('、')}
 语气称呼「爸爸」，第一人称，最多一个感叹号。''';
   }
 

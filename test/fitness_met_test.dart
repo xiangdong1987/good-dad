@@ -164,4 +164,72 @@ void main() {
       }
     });
   });
+
+  group('ActivityKind.parse', () {
+    test('按 name 解析 LLM 标注的类型', () {
+      expect(ActivityKind.parse('kbBallistic'), ActivityKind.kbBallistic);
+      expect(ActivityKind.parse('kbTgu'), ActivityKind.kbTgu);
+      expect(ActivityKind.parse('core'), ActivityKind.core);
+    });
+
+    test('大小写和空格不敏感', () {
+      expect(ActivityKind.parse(' KBBALLISTIC '), ActivityKind.kbBallistic);
+    });
+
+    test('认不出或没给时返回 null，交给关键词兜底', () {
+      expect(ActivityKind.parse('乱写的'), isNull);
+      expect(ActivityKind.parse(null), isNull);
+      expect(ActivityKind.parse(''), isNull);
+    });
+
+    test('training 只列训练类，不含手动记录的日常项', () {
+      expect(ActivityKind.training, isNot(contains(ActivityKind.walk)));
+      expect(ActivityKind.training, contains(ActivityKind.kbBallistic));
+    });
+  });
+
+  group('classify 对真实 LLM 措辞的覆盖', () {
+    // 真机上 LLM 输出的是「壶铃摆动」，而关键词表里只有「摆荡」，
+    // 结果最典型的弹道动作被归成了力量类。
+    test('摆动和摆荡都算弹道', () {
+      expect(FitnessMet.classify('壶铃摆动'), ActivityKind.kbBallistic);
+      expect(FitnessMet.classify('壶铃摆荡'), ActivityKind.kbBallistic);
+    });
+
+    test('起身和起立都算 TGU', () {
+      expect(FitnessMet.classify('土耳其起身'), ActivityKind.kbTgu);
+      expect(FitnessMet.classify('土耳其起立'), ActivityKind.kbTgu);
+    });
+
+    test('挺举归到抓举类而不是力量类', () {
+      expect(FitnessMet.classify('壶铃挺举'), ActivityKind.kbSnatch);
+    });
+  });
+
+  group('sessionBurn 优先用 LLM 标注的类型', () {
+    test('move 带 kind 时不再靠关键词猜', () {
+      // 动作名故意不含任何弹道关键词，但 kind 标了弹道
+      const plan = [
+        TrainingMove(
+          move: '某个新动作',
+          sets: 3,
+          reps: 15,
+          weightKg: 20,
+          kind: ActivityKind.kbBallistic,
+        ),
+      ];
+      final burn = FitnessMet.sessionBurn(plan: plan, weightKg: 94.1);
+      // 弹道节奏 2s/次 + 45s 休息 = (45*2 + 2*45)/60 = 3.0 分钟
+      expect(burn.minutes, closeTo(3.0, 0.01));
+      expect(burn.kcal, 42);
+    });
+
+    test('没给 kind 时退回关键词分类', () {
+      const plan = [
+        TrainingMove(move: '壶铃摆动', sets: 3, reps: 15, weightKg: 20),
+      ];
+      final burn = FitnessMet.sessionBurn(plan: plan, weightKg: 94.1);
+      expect(burn.minutes, closeTo(3.0, 0.01));
+    });
+  });
 }
