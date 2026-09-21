@@ -175,3 +175,14 @@ P1 拆成两步交付：
 repository 补 `mealsBetween` / `trainingBetween` / `plansBetween`
 （`weightsBetween` 已有）。新建 `lib/features/fitness/fitness_trends.dart`
 放按日聚合的纯函数，P1b 的图表直接复用。
+
+### 偏离原设计：趋势卡并入历史页（2026-09-21）
+
+§5 原本规划独立的 `/fitness/trends` 页。P1a 落地后 `/fitness/history` 已经带了
+跨度切换和按日列表，再开一个页会变成两个「看历史」的入口，还得各自维护一套
+跨度状态。
+
+**三张趋势卡改为放在历史页的列表上方**：跨度切换 → 趋势卡 → 按日列表，一条动线。
+不再新增 `/fitness/trends` 路由。
+
+其余规格（画法、配色、最少 3 天才画图）照 §5 执行。

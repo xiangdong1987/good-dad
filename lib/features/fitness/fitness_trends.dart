@@ -36,8 +36,148 @@ class DaySummary {
   });
 }
 
+
+/// 体重区间概况。null 表示数据不足以得出该值。
+class WeightSummary {
+  final double? startKg;
+  final double? currentKg;
+
+  /// 净变化 = 末 − 首；只有一个点时为 null。
+  final double? deltaKg;
+
+  /// 平均每周变化；跨度为 0 天时为 null（避免除零）。
+  final double? weeklyRateKg;
+
+  final int points;
+
+  const WeightSummary({
+    this.startKg,
+    this.currentKg,
+    this.deltaKg,
+    this.weeklyRateKg,
+    this.points = 0,
+  });
+}
+
+/// 某天的摄入与当日目标对比。
+class IntakeCompare {
+  final String date;
+  final int kcal;
+
+  /// 那天的热量目标；没有计划则为 null。
+  final int? target;
+
+  const IntakeCompare(
+      {required this.date, required this.kcal, this.target});
+
+  /// 没超目标算达标；没有目标则不判好坏。
+  bool? get onTarget => target == null ? null : kcal <= target!;
+}
+
+/// 训练坚持度。
+class StreakSummary {
+  /// 当前连续天数。
+  final int current;
+
+  /// 区间内最长连续天数。
+  final int longest;
+
+  /// 当月完成次数。
+  final int monthCount;
+
+  const StreakSummary({
+    this.current = 0,
+    this.longest = 0,
+    this.monthCount = 0,
+  });
+}
+
 class FitnessTrends {
   static const _weekdayZh = ['一', '二', '三', '四', '五', '六', '日'];
+
+
+  /// 体重区间概况。
+  static WeightSummary weightSummary(Map<String, double> weights) {
+    if (weights.isEmpty) return const WeightSummary();
+    final dates = weights.keys.toList()..sort();
+    final start = weights[dates.first]!;
+    final current = weights[dates.last]!;
+    if (dates.length == 1) {
+      return WeightSummary(
+          startKg: start, currentKg: current, points: 1);
+    }
+    final spanDays = DateTime.parse(dates.last)
+        .difference(DateTime.parse(dates.first))
+        .inDays;
+    final delta = current - start;
+    return WeightSummary(
+      startKg: start,
+      currentKg: current,
+      deltaKg: delta,
+      weeklyRateKg: spanDays == 0 ? null : delta / spanDays * 7,
+      points: dates.length,
+    );
+  }
+
+  /// 每天摄入 vs 当日目标，按日期升序。只列出真吃了的日子。
+  static List<IntakeCompare> intakeVsTarget({
+    required Map<String, int> intake,
+    required Map<String, int> targets,
+  }) {
+    final dates = intake.keys.toList()..sort();
+    return dates
+        .map((d) => IntakeCompare(
+            date: d, kcal: intake[d]!, target: targets[d]))
+        .toList();
+  }
+
+  static int onTargetDays(List<IntakeCompare> list) =>
+      list.where((e) => e.onTarget == true).length;
+
+  /// 训练坚持度。
+  ///
+  /// 当前连续：今天练了就从今天数起；今天还没练则从昨天数起——
+  /// 白天还没开练就显示 0 只会打击人。
+  static StreakSummary trainingStreak(
+    Map<String, bool> trainings, {
+    required String today,
+  }) {
+    final done = trainings.entries
+        .where((e) => e.value)
+        .map((e) => e.key)
+        .toSet();
+    if (done.isEmpty) return const StreakSummary();
+
+    final t = DateTime.parse(today);
+    var cursor = done.contains(today) ? t : t.subtract(const Duration(days: 1));
+    var current = 0;
+    while (done.contains(isoDate(cursor))) {
+      current++;
+      cursor = cursor.subtract(const Duration(days: 1));
+    }
+
+    final sorted = done.toList()..sort();
+    var longest = 1, run = 1;
+    for (var i = 1; i < sorted.length; i++) {
+      final gap = DateTime.parse(sorted[i])
+          .difference(DateTime.parse(sorted[i - 1]))
+          .inDays;
+      run = gap == 1 ? run + 1 : 1;
+      if (run > longest) longest = run;
+    }
+
+    final prefix = today.substring(0, 7); // yyyy-MM
+    final monthCount = done.where((d) => d.startsWith(prefix)).length;
+
+    return StreakSummary(
+        current: current, longest: longest, monthCount: monthCount);
+  }
+
+  /// yyyy-MM-dd。
+  static String isoDate(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
 
   /// yyyy-MM-dd → 「9月21日 周一」。
   static String dayLabel(String isoDate) {
