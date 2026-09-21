@@ -224,6 +224,32 @@ class FitnessRepository {
         .toList();
   }
 
+  // ── 范围查询（历史与趋势用）───────────────────────────────
+  /// 按日期升序，含两端。
+  Future<List<MealLogRow>> mealsBetween(String from, String to) =>
+      (_db.select(_db.mealLogs)
+            ..where((t) =>
+                t.date.isBiggerOrEqualValue(from) &
+                t.date.isSmallerOrEqualValue(to))
+            ..orderBy([(t) => OrderingTerm.asc(t.date)]))
+          .get();
+
+  Future<List<TrainingLogRow>> trainingBetween(String from, String to) =>
+      (_db.select(_db.trainingLogs)
+            ..where((t) =>
+                t.date.isBiggerOrEqualValue(from) &
+                t.date.isSmallerOrEqualValue(to))
+            ..orderBy([(t) => OrderingTerm.asc(t.date)]))
+          .get();
+
+  Future<List<DailyPlanRow>> plansBetween(String from, String to) =>
+      (_db.select(_db.dailyPlans)
+            ..where((t) =>
+                t.targetDate.isBiggerOrEqualValue(from) &
+                t.targetDate.isSmallerOrEqualValue(to))
+            ..orderBy([(t) => OrderingTerm.asc(t.targetDate)]))
+          .get();
+
 }
 
 final fitnessRepositoryProvider = Provider<FitnessRepository>(

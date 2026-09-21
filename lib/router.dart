@@ -6,7 +6,9 @@ import 'features/belly_photo/belly_photo_page.dart';
 import 'features/calendar/calendar_page.dart';
 import 'features/chat/chat_page.dart';
 import 'features/checklist/checklist_page.dart';
+import 'features/fitness/day_detail_page.dart';
 import 'features/fitness/fitness_page.dart';
+import 'features/fitness/history_page.dart';
 import 'features/fitness/fitness_profile_page.dart';
 import 'features/fitness/meal_capture_page.dart';
 import 'features/fitness/fitness_models.dart';
@@ -96,6 +98,19 @@ final appRouter = GoRouter(
       path: '/fitness/profile',
       name: 'fitness-profile',
       builder: (context, state) => const FitnessProfilePage(),
+    ),
+    GoRoute(
+      path: '/fitness/history',
+      name: 'fitness-history',
+      builder: (context, state) => const HistoryPage(),
+    ),
+    GoRoute(
+      path: '/fitness/day',
+      name: 'fitness-day',
+      builder: (context, state) => DayDetailPage(
+        date: (state.extra as String?) ??
+            DateTime.now().toIso8601String().substring(0, 10),
+      ),
     ),
     GoRoute(
       path: '/fitness/meal',

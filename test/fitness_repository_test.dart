@@ -191,4 +191,53 @@ void main() {
       expect(await repo.weightsBetween('2026-09-01', '2026-09-30'), isEmpty);
     });
   });
+
+  group('范围查询', () {
+    setUp(() async {
+      await repo.saveMeal(
+          date: '2026-09-19',
+          meal: Meal.lunch,
+          analysis: const MealAnalysis(kcal: 700),
+          photoPath: null,
+          edited: false);
+      await repo.saveMeal(
+          date: '2026-09-20',
+          meal: Meal.dinner,
+          analysis: const MealAnalysis(kcal: 900),
+          photoPath: null,
+          edited: false);
+      await repo.saveMeal(
+          date: '2026-09-21',
+          meal: Meal.breakfast,
+          analysis: const MealAnalysis(kcal: 400),
+          photoPath: null,
+          edited: false);
+      await repo.markTrainingDone('2026-09-19', '[]');
+      await repo.markTrainingDone('2026-09-21', '[]');
+      await repo.savePlan('2026-09-20', const TomorrowPlan());
+      await repo.savePlan('2026-09-21', const TomorrowPlan());
+    });
+
+    test('mealsBetween 含两端，按日期升序', () async {
+      final rows = await repo.mealsBetween('2026-09-19', '2026-09-20');
+      expect(rows.map((r) => r.date), ['2026-09-19', '2026-09-20']);
+    });
+
+    test('trainingBetween 只取范围内的', () async {
+      final rows = await repo.trainingBetween('2026-09-20', '2026-09-21');
+      expect(rows, hasLength(1));
+      expect(rows.single.date, '2026-09-21');
+    });
+
+    test('plansBetween 含两端', () async {
+      final rows = await repo.plansBetween('2026-09-20', '2026-09-21');
+      expect(rows.map((r) => r.targetDate), ['2026-09-20', '2026-09-21']);
+    });
+
+    test('范围外返回空', () async {
+      expect(await repo.mealsBetween('2026-08-01', '2026-08-31'), isEmpty);
+      expect(await repo.trainingBetween('2026-08-01', '2026-08-31'), isEmpty);
+      expect(await repo.plansBetween('2026-08-01', '2026-08-31'), isEmpty);
+    });
+  });
 }
