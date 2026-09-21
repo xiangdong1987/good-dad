@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'dart:typed_data';
+
+import 'package:collection/collection.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +15,7 @@ import 'fitness_llm.dart';
 import 'fitness_models.dart';
 import 'fitness_prompt.dart';
 import 'fitness_repository.dart';
+import 'widgets/food_list_editor.dart';
 
 /// 拍一餐 → AI 分析 → 可编辑结果 → 保存到 meal_log。
 /// 通过构造参数拿到目标日期与餐次。
@@ -31,6 +35,13 @@ class _MealCapturePageState extends ConsumerState<MealCapturePage> {
   String? _error;
   bool _running = false;
 
+  /// 一句话描述的输入框。
+  final _desc = TextEditingController();
+
+  /// 编辑既有记录时保留原照片，别因为没重拍就把照片弄丢。
+  String? _existingPhotoPath;
+  bool _loaded = false;
+
   // 可编辑字段
   final _kcal = TextEditingController();
   final _protein = TextEditingController();
@@ -39,7 +50,44 @@ class _MealCapturePageState extends ConsumerState<MealCapturePage> {
   bool _edited = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadExisting());
+  }
+
+  /// 这餐已经记过就把数据读回来，进入编辑而不是重新记一遍。
+  Future<void> _loadExisting() async {
+    final rows =
+        await ref.read(fitnessRepositoryProvider).mealsForDate(widget.date);
+    final row = rows.where((r) => r.meal == widget.meal.name).firstOrNull;
+    if (!mounted) return;
+    if (row == null) {
+      setState(() => _loaded = true);
+      return;
+    }
+    final foods = (jsonDecode(row.foodsJson) as List)
+        .map((e) => FoodItem.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+    setState(() {
+      _loaded = true;
+      _existingPhotoPath = row.photoPath;
+      _result = MealAnalysis(
+        foods: foods,
+        kcal: row.kcal,
+        proteinG: row.proteinG,
+        carbG: row.carbG,
+        fatG: row.fatG,
+      );
+      _kcal.text = row.kcal.toString();
+      _protein.text = row.proteinG.toString();
+      _carb.text = row.carbG.toString();
+      _fat.text = row.fatG.toString();
+    });
+  }
+
+  @override
   void dispose() {
+    _desc.dispose();
     _kcal.dispose();
     _protein.dispose();
     _carb.dispose();
@@ -93,21 +141,104 @@ class _MealCapturePageState extends ConsumerState<MealCapturePage> {
     }
   }
 
+  /// 一句话描述记一餐。
+  Future<void> _analyzeText() async {
+    final text = _desc.text.trim();
+    if (text.isEmpty || _running) return;
+    final llm = ref.read(fitnessLlmProvider);
+    if (llm == null) {
+      setState(() => _error = '请先到「设置」配好 LLM（baseURL + key）');
+      return;
+    }
+    setState(() {
+      _error = null;
+      _running = true;
+    });
+    try {
+      final res =
+          await llm.analyzeMealText(meal: widget.meal, description: text);
+      if (!mounted) return;
+      setState(() {
+        _result = res;
+        _running = false;
+        _edited = false;
+        _kcal.text = res.totalKcal.toString();
+        _protein.text = res.totalProteinG.toString();
+        _carb.text = res.totalCarbG.toString();
+        _fat.text = res.totalFatG.toString();
+      });
+    } on FitnessLlmError catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _running = false;
+      });
+    }
+  }
+
+  /// 新增一样食物：复用文字分析拿估值，不另起一条 LLM 通道。
+  Future<FoodItem?> _addFood() async {
+    final input = await showDialog<String>(
+      context: context,
+      builder: (c) {
+        final ctl = TextEditingController();
+        return AlertDialog(
+          title: const Text('加一样'),
+          content: TextField(
+            controller: ctl,
+            autofocus: true,
+            decoration: const InputDecoration(hintText: '比如：一罐可乐 330ml'),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.of(c).pop(), child: const Text('算了')),
+            TextButton(
+                onPressed: () => Navigator.of(c).pop(ctl.text.trim()),
+                child: const Text('让 AI 估')),
+          ],
+        );
+      },
+    );
+    if (input == null || input.isEmpty) return null;
+
+    final llm = ref.read(fitnessLlmProvider);
+    if (llm == null) return null;
+    setState(() => _running = true);
+    try {
+      final res =
+          await llm.analyzeMealText(meal: widget.meal, description: input);
+      if (mounted) setState(() => _running = false);
+      return res.foods.isEmpty ? null : res.foods.first;
+    } on FitnessLlmError catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.message;
+          _running = false;
+        });
+      }
+      return null;
+    }
+  }
+
   Future<void> _save() async {
     final res = _result;
     if (res == null) return;
-    String? photoPath;
+    // 编辑既有记录且没重拍时，沿用原来的照片。
+    String? photoPath = _existingPhotoPath;
     if (_bytes != null) {
       photoPath = await ref.read(fileStoreProvider).saveMealPhoto(_bytes!);
     }
-    final analysis = MealAnalysis(
-      foods: res.foods,
-      kcal: int.tryParse(_kcal.text) ?? res.kcal,
-      proteinG: int.tryParse(_protein.text) ?? res.proteinG,
-      carbG: int.tryParse(_carb.text) ?? res.carbG,
-      fatG: int.tryParse(_fat.text) ?? res.fatG,
-      note: res.note,
-    );
+    // 明细齐全时整餐由明细之和决定，手填的四个数字只在没有明细时生效。
+    final analysis = res.hasItemDetail
+        ? res
+        : MealAnalysis(
+            foods: res.foods,
+            kcal: int.tryParse(_kcal.text) ?? res.kcal,
+            proteinG: int.tryParse(_protein.text) ?? res.proteinG,
+            carbG: int.tryParse(_carb.text) ?? res.carbG,
+            fatG: int.tryParse(_fat.text) ?? res.fatG,
+            note: res.note,
+          );
     await ref.read(fitnessRepositoryProvider).saveMeal(
           date: widget.date,
           meal: widget.meal,
@@ -133,24 +264,47 @@ class _MealCapturePageState extends ConsumerState<MealCapturePage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         children: [
-          if (_bytes == null)
+          if (!_loaded)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_bytes == null && _result == null)
             CreamCard(
-              child: SizedBox(
-                height: 160,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Sticker(emoji: '🍽', size: 56, background: AppColors.mint300),
-                      SizedBox(height: 10),
-                      Text('拍一张这餐的照片',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(children: [
+                    Sticker(
+                        emoji: '🍽', size: 40, background: AppColors.mint300),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text('拍一张，或者说两句',
                           style: TextStyle(
                               fontFamily: 'Nunito',
                               fontWeight: FontWeight.w800,
-                              fontSize: 14)),
-                    ],
+                              fontSize: 15)),
+                    ),
+                  ]),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _desc,
+                    minLines: 2,
+                    maxLines: 4,
+                    enabled: !_running,
+                    decoration: const InputDecoration(
+                      hintText: '比如：两个饺子、一碗小米粥、一个煎蛋',
+                    ),
+                    onSubmitted: (_) => _analyzeText(),
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  CreamButton(
+                    label: _running ? '分析中…' : '让 AI 拆解',
+                    emoji: _running ? null : '✍️',
+                    full: true,
+                    onPressed: _running ? null : _analyzeText,
+                  ),
+                ],
               ),
             ),
           if (_bytes != null)
@@ -206,7 +360,16 @@ class _MealCapturePageState extends ConsumerState<MealCapturePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (_result!.foods.isNotEmpty)
+                  if (_result!.hasItemDetail)
+                    FoodListEditor(
+                      foods: _result!.foods,
+                      onAdd: _addFood,
+                      onChanged: (next) => setState(() {
+                        _result = _result!.withFoods(next);
+                        _edited = true;
+                      }),
+                    )
+                  else if (_result!.foods.isNotEmpty)
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -226,24 +389,38 @@ class _MealCapturePageState extends ConsumerState<MealCapturePage> {
                             height: 1.4)),
                   ],
                   const SizedBox(height: 12),
-                  const Text('估算（可改）',
-                      style: TextStyle(
-                          fontFamily: 'Nunito',
-                          fontWeight: FontWeight.w900,
-                          fontSize: 13,
-                          color: AppColors.ink600)),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    _macroField('热量', _kcal),
-                    const SizedBox(width: 8),
-                    _macroField('蛋白', _protein),
-                  ]),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    _macroField('碳水', _carb),
-                    const SizedBox(width: 8),
-                    _macroField('脂肪', _fat),
-                  ]),
+                  if (_result!.hasItemDetail)
+                    Text(
+                      '合计 ${_result!.totalKcal} 大卡 · 蛋白 ${_result!.totalProteinG}g'
+                      ' · 碳水 ${_result!.totalCarbG}g · 脂肪 ${_result!.totalFatG}g',
+                      style: const TextStyle(
+                        fontFamily: 'Nunito',
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color: AppColors.ink600,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    )
+                  else ...[
+                    const Text('这餐没有逐项明细，只能改整体估算',
+                        style: TextStyle(
+                            fontFamily: 'Nunito',
+                            fontWeight: FontWeight.w900,
+                            fontSize: 13,
+                            color: AppColors.ink600)),
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      _macroField('热量', _kcal),
+                      const SizedBox(width: 8),
+                      _macroField('蛋白', _protein),
+                    ]),
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      _macroField('碳水', _carb),
+                      const SizedBox(width: 8),
+                      _macroField('脂肪', _fat),
+                    ]),
+                  ],
                 ],
               ),
             ),
