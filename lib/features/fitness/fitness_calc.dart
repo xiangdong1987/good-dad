@@ -142,12 +142,33 @@ class FitnessCalc {
     return DayTotals(kcal: kcal, proteinG: p, carbG: c, fatG: f);
   }
 
-  /// 进入页面时是否该现场生成明日计划：晚上阈值后且尚无缓存。
-  static bool needsPlanGeneration({
+  /// 该给哪一天生成计划；都不需要则返回 null。
+  ///
+  /// 今天缺计划优先补，**不看几点**——原来只在 [generateAfterHour] 之后
+  /// 生成「明天」，错过那个窗口就再也没有补偿逻辑，今日训练卡会永远显示
+  /// 「今天还没有训练计划」。
+  static String? planDateToGenerate({
+    required String today,
+    required String tomorrow,
+    required bool hasPlanForToday,
     required bool hasPlanForTomorrow,
     required int hour,
-  }) =>
-      !hasPlanForTomorrow && hour >= generateAfterHour;
+  }) {
+    if (!hasPlanForToday) return today;
+    if (!hasPlanForTomorrow && hour >= generateAfterHour) return tomorrow;
+    return null;
+  }
+
+  /// 计划依据的实际数据取目标日的前一天：补今天的用昨天的，
+  /// 备明天的用今天的。
+  static String sourceDateFor(String targetDate) =>
+      isoDate(DateTime.parse(targetDate).subtract(const Duration(days: 1)));
+
+  /// yyyy-MM-dd。
+  static String isoDate(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
 
   /// 今日消耗拆解：全天基础代谢 + 训练 + 日常活动。
   ///
