@@ -9,8 +9,8 @@ import '../../core/storage/database.dart';
 import '../../ui/theme.dart';
 import '../../ui/widgets/cream_widgets.dart';
 import 'fitness_calc.dart';
-import 'fitness_llm.dart';
 import 'fitness_met.dart';
+import 'fitness_plan_service.dart';
 import 'fitness_models.dart';
 import 'fitness_repository.dart';
 import 'widgets/activity_sheet.dart';
@@ -53,39 +53,11 @@ class _FitnessPageState extends ConsumerState<FitnessPage> {
   }
 
   Future<void> _maybeGeneratePlan() async {
-    final repo = ref.read(fitnessRepositoryProvider);
-    final now = DateTime.now();
-    final tomorrow = _isoDate(now.add(const Duration(days: 1)));
-    final has = (await repo.planForDate(tomorrow)) != null;
-    if (!FitnessCalc.needsPlanGeneration(
-        hasPlanForTomorrow: has, hour: now.hour)) {
-      return;
-    }
-    final llm = ref.read(fitnessLlmProvider);
-    if (llm == null) return;
-    final profile = await repo.loadProfile();
-    if (!profile.isComplete) return;
-
-    final today = _isoDate(now);
-    final meals = await repo.mealsForDate(today);
-    final totals = FitnessCalc.sumDay(meals
-        .map((m) => MealAnalysis(
-            kcal: m.kcal, proteinG: m.proteinG, carbG: m.carbG, fatG: m.fatG))
-        .toList());
-    final training = await repo.trainingForDate(today);
-
     if (!mounted) return;
     setState(() => _generating = true);
-    try {
-      final plan = await llm.generateTomorrowPlan(
-        profile: profile,
-        totals: totals,
-        trainingDone: training?.done ?? false,
-      );
-      await repo.savePlan(tomorrow, plan);
-    } catch (_) {
-      // 生成失败静默，页面照常展示已有数据
-    }
+    // 编排搬到 FitnessPlanService：App 启动与恢复前台时也会调，
+    // 这里只负责转菊花和刷新。
+    await ref.read(fitnessPlanServiceProvider).ensurePlan();
     if (mounted) setState(() => _generating = false);
   }
 

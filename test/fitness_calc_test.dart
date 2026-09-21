@@ -43,31 +43,6 @@ void main() {
     });
   });
 
-  group('needsPlanGeneration', () {
-    test('明日已有缓存计划则不需要再生成', () {
-      expect(
-        FitnessCalc.needsPlanGeneration(
-            hasPlanForTomorrow: true, hour: 22),
-        isFalse,
-      );
-    });
-
-    test('晚上 21 点后且无缓存则需要生成', () {
-      expect(
-        FitnessCalc.needsPlanGeneration(
-            hasPlanForTomorrow: false, hour: 21),
-        isTrue,
-      );
-    });
-
-    test('白天无缓存也不主动生成（等晚上）', () {
-      expect(
-        FitnessCalc.needsPlanGeneration(
-            hasPlanForTomorrow: false, hour: 10),
-        isFalse,
-      );
-    });
-  });
 
   group('bmr', () {
     test('Mifflin-St Jeor 男性公式，不含活动系数', () {
@@ -335,6 +310,96 @@ void main() {
     test('边界值算有效', () {
       expect(FitnessCalc.weightInputError(FitnessCalc.minWeightKg), isNull);
       expect(FitnessCalc.weightInputError(FitnessCalc.maxWeightKg), isNull);
+    });
+  });
+
+  group('planDateToGenerate', () {
+    // 原来的逻辑只在 hour>=21 生成「明天」，错过窗口就永远没计划——
+    // 今日训练卡会一直显示「今天还没有训练计划」。
+    const today = '2026-09-21';
+    const tomorrow = '2026-09-22';
+
+    test('今天缺计划就立刻补，不管几点', () {
+      expect(
+        FitnessCalc.planDateToGenerate(
+          today: today,
+          tomorrow: tomorrow,
+          hasPlanForToday: false,
+          hasPlanForTomorrow: false,
+          hour: 8,
+        ),
+        today,
+      );
+    });
+
+    test('今天明天都缺时先补今天，今天更急', () {
+      expect(
+        FitnessCalc.planDateToGenerate(
+          today: today,
+          tomorrow: tomorrow,
+          hasPlanForToday: false,
+          hasPlanForTomorrow: false,
+          hour: 22,
+        ),
+        today,
+      );
+    });
+
+    test('今天有了、过了阈值、明天没有 → 备明天', () {
+      expect(
+        FitnessCalc.planDateToGenerate(
+          today: today,
+          tomorrow: tomorrow,
+          hasPlanForToday: true,
+          hasPlanForTomorrow: false,
+          hour: 21,
+        ),
+        tomorrow,
+      );
+    });
+
+    test('今天有了但没到阈值，不提前备明天', () {
+      expect(
+        FitnessCalc.planDateToGenerate(
+          today: today,
+          tomorrow: tomorrow,
+          hasPlanForToday: true,
+          hasPlanForTomorrow: false,
+          hour: 20,
+        ),
+        isNull,
+      );
+    });
+
+    test('两天都有计划就不再生成', () {
+      expect(
+        FitnessCalc.planDateToGenerate(
+          today: today,
+          tomorrow: tomorrow,
+          hasPlanForToday: true,
+          hasPlanForTomorrow: true,
+          hour: 23,
+        ),
+        isNull,
+      );
+    });
+  });
+
+  group('sourceDateFor', () {
+    test('计划用目标日前一天的实际数据：补今天的用昨天的', () {
+      expect(FitnessCalc.sourceDateFor('2026-09-21'), '2026-09-20');
+    });
+
+    test('生成明天的用今天的数据', () {
+      expect(FitnessCalc.sourceDateFor('2026-09-22'), '2026-09-21');
+    });
+
+    test('跨月边界正确', () {
+      expect(FitnessCalc.sourceDateFor('2026-10-01'), '2026-09-30');
+    });
+
+    test('跨年边界正确', () {
+      expect(FitnessCalc.sourceDateFor('2027-01-01'), '2026-12-31');
     });
   });
 }
