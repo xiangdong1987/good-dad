@@ -26,7 +26,13 @@ class FitnessPlanService {
   const FitnessPlanService({required this.repo, required this.generate});
 
   /// 按需生成计划，返回生成的目标日期；没生成则返回 null。
-  Future<String?> ensurePlan({DateTime? now}) async {
+  ///
+  /// [onStart] 在确定要生成、真正调 LLM 之前回调一次，带上目标日期——
+  /// 页面据此决定菊花转在「今日训练」还是「明日计划」卡上。
+  Future<String?> ensurePlan({
+    DateTime? now,
+    void Function(String targetDate)? onStart,
+  }) async {
     final at = now ?? DateTime.now();
     final today = FitnessCalc.isoDate(at);
     final tomorrow = FitnessCalc.isoDate(at.add(const Duration(days: 1)));
@@ -45,6 +51,8 @@ class FitnessPlanService {
 
     final profile = await repo.loadProfile();
     if (!profile.isComplete) return null;
+
+    onStart?.call(target);
 
     final source = FitnessCalc.sourceDateFor(target);
     final meals = await repo.mealsForDate(source);
