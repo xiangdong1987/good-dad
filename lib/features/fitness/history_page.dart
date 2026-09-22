@@ -7,7 +7,11 @@ import '../../ui/widgets/cream_widgets.dart';
 import 'fitness_calc.dart';
 import 'fitness_repository.dart';
 import 'fitness_trends.dart';
+import 'fitness_models.dart';
 import 'widgets/day_summary_tile.dart';
+import 'widgets/intake_trend_card.dart';
+import 'widgets/training_streak_card.dart';
+import 'widgets/weight_trend_card.dart';
 
 /// 历史：按日列表，点进某天看明细。
 ///
@@ -24,7 +28,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
   static const _ranges = [7, 30, 90];
   int _days = 30;
 
-  Future<List<DaySummary>> _load() async {
+  Future<_HistoryData> _load() async {
     final repo = ref.read(fitnessRepositoryProvider);
     final now = DateTime.now();
     final to = FitnessCalc.isoDate(now);
@@ -34,10 +38,30 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
     final trainings = await repo.trainingBetween(from, to);
     final weights = await repo.weightsBetween(from, to);
 
-    return FitnessTrends.daySummaries(
-      meals: meals.map((m) => DayMeal(date: m.date, kcal: m.kcal)).toList(),
-      trainings: {for (final t in trainings) t.date: t.done},
-      weights: {for (final w in weights) w.date: w.weightKg},
+    final plans = await repo.plansBetween(from, to);
+    final trainingMap = {for (final t in trainings) t.date: t.done};
+    final weightMap = {for (final w in weights) w.date: w.weightKg};
+
+    final intakeMap = <String, int>{};
+    for (final m in meals) {
+      intakeMap[m.date] = (intakeMap[m.date] ?? 0) + m.kcal;
+    }
+
+    return _HistoryData(
+      days: FitnessTrends.daySummaries(
+        meals: meals.map((m) => DayMeal(date: m.date, kcal: m.kcal)).toList(),
+        trainings: trainingMap,
+        weights: weightMap,
+      ),
+      intake: intakeMap,
+      targets: {
+        for (final p in plans)
+          if (p.kcalTarget > 0) p.targetDate: p.kcalTarget
+      },
+      trainings: trainingMap,
+      weights: weightMap,
+      goal: (await repo.loadProfile()).goal,
+      today: to,
     );
   }
 
@@ -51,10 +75,11 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
         ),
         title: const Text('壶铃 · 历史'),
       ),
-      body: FutureBuilder<List<DaySummary>>(
+      body: FutureBuilder<_HistoryData>(
         future: _load(),
         builder: (context, snap) {
-          final days = snap.data;
+          final data = snap.data;
+          final days = data?.days;
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
             children: [
@@ -74,6 +99,16 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),
+              if (data != null) ...[
+                WeightTrendCard(weights: data.weights, goal: data.goal),
+                IntakeTrendCard(
+                    intake: data.intake, targets: data.targets),
+                TrainingStreakCard(
+                    trainings: data.trainings,
+                    today: data.today,
+                    days: _days),
+                const SizedBox(height: AppSpacing.sm),
+              ],
               if (days == null)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 40),
@@ -117,4 +152,24 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
       ),
     );
   }
+}
+
+class _HistoryData {
+  final List<DaySummary> days;
+  final Map<String, int> intake;
+  final Map<String, int> targets;
+  final Map<String, bool> trainings;
+  final Map<String, double> weights;
+  final Goal goal;
+  final String today;
+
+  _HistoryData({
+    required this.days,
+    required this.intake,
+    required this.targets,
+    required this.trainings,
+    required this.weights,
+    required this.goal,
+    required this.today,
+  });
 }
